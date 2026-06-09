@@ -1,5 +1,8 @@
 import type { ContextMenuItem, LocalApi } from "@t3tools/contracts";
 
+import { useBrowserPanelStore } from "./components/Browser/browserPanelStore";
+import { getClientSettings } from "./hooks/useSettings";
+
 import { resetGitStatusStateForTests } from "./lib/gitStatusState";
 import { resetSourceControlDiscoveryStateForTests } from "./lib/sourceControlDiscoveryState";
 import { resetRequestLatencyStateForTests } from "./rpc/requestLatencyState";
@@ -53,6 +56,14 @@ function createBrowserLocalApi(rpcClient?: WsRpcClient): LocalApi {
           : Promise.reject(unavailableLocalBackendError()),
       openExternal: async (url) => {
         if (window.desktopBridge) {
+          const preferInApp = getClientSettings().defaultLinkTarget === "in-app";
+          const isFile = /^file:\/\//i.test(url);
+          const isHttp = /^https?:\/\//i.test(url);
+          if ((preferInApp && (isHttp || isFile)) || isFile) {
+            useBrowserPanelStore.getState().setUrl(url);
+            useBrowserPanelStore.getState().setOpen(true);
+            return;
+          }
           const opened = await window.desktopBridge.openExternal(url);
           if (!opened) {
             throw new Error("Unable to open link.");

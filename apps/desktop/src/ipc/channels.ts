@@ -33,3 +33,20 @@ export const SET_SERVER_EXPOSURE_MODE_CHANNEL = "desktop:set-server-exposure-mod
 export const SET_TAILSCALE_SERVE_ENABLED_CHANNEL = "desktop:set-tailscale-serve-enabled";
 export const GET_ADVERTISED_ENDPOINTS_CHANNEL = "desktop:get-advertised-endpoints";
 export const SSH_PASSWORD_PROMPT_CANCELLED_RESULT = "ssh-password-prompt-cancelled";
+
+export const BROWSER_SHOW_CHANNEL = "desktop:browser-show";
+export const BROWSER_HIDE_CHANNEL = "desktop:browser-hide";
+export const BROWSER_SET_BOUNDS_CHANNEL = "desktop:browser-set-bounds";
+export const BROWSER_NAVIGATE_CHANNEL = "desktop:browser-navigate";
+export const BROWSER_BACK_CHANNEL = "desktop:browser-back";
+export const BROWSER_FORWARD_CHANNEL = "desktop:browser-forward";
+export const BROWSER_RELOAD_CHANNEL = "desktop:browser-reload";
+export const BROWSER_STATE_CHANNEL = "desktop:browser-state";
+export const BROWSER_EXTERNAL_LINK_CHANNEL = "desktop:browser-external-link";
+export const BROWSER_OPEN_POPOUT_CHANNEL = "desktop:browser-open-popout";
+
+export const GITHUB_AUTH_START_DEVICE_FLOW_CHANNEL = "desktop:github-auth-start-device-flow";
+export const GITHUB_AUTH_POLL_FOR_TOKEN_CHANNEL = "desktop:github-auth-poll-for-token";
+export const GITHUB_AUTH_GET_STORED_STATE_CHANNEL = "desktop:github-auth-get-stored-state";
+export const GITHUB_AUTH_SIGN_OUT_CHANNEL = "desktop:github-auth-sign-out";
+export const GITHUB_BOOTSTRAP_PROJECT_CHANNEL = "desktop:github-bootstrap-project";

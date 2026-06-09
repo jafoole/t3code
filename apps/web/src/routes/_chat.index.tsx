@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LinkIcon, PlusIcon } from "lucide-react";
+import { useEffect } from "react";
 
+import { useBrowserPanelStore } from "../components/Browser/browserPanelStore";
 import { NoActiveThreadState } from "../components/NoActiveThreadState";
 import { Button } from "../components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../components/ui/empty";
@@ -13,6 +15,11 @@ function ChatIndexRouteView() {
   const savedEnvironmentCount = useSavedEnvironmentRegistryStore(
     (state) => Object.keys(state.byId).length,
   );
+
+  // No active project on this route → clear panel scope.
+  useEffect(() => {
+    useBrowserPanelStore.getState().setScopeKey(null);
+  }, []);
 
   if (authGateState.status === "hosted-static" && savedEnvironmentCount === 0) {
     return <HostedStaticOnboardingState />;
@@ -48,7 +55,7 @@ function HostedStaticOnboardingState() {
                 Connect an environment to get started
               </EmptyTitle>
               <EmptyDescription className="mt-2 text-sm leading-relaxed text-muted-foreground/78">
-                Open a pairing link from your T3 Code desktop app or add a reachable backend
+                Open a pairing link from your Pallet desktop app or add a reachable backend
                 manually. Your saved environments stay in this browser.
               </EmptyDescription>
               <div className="mt-6 flex justify-center">

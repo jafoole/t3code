@@ -53,7 +53,7 @@ const checkForUpdatesFromMenu: Effect.Effect<
     yield* electronDialog.showMessageBox({
       type: "info",
       title: "You're up to date!",
-      message: `T3 Code ${updateState.currentVersion} is currently the newest version available.`,
+      message: `Pallet ${updateState.currentVersion} is currently the newest version available.`,
       buttons: ["OK"],
     });
   } else if (updateState.status === "error") {
@@ -98,7 +98,6 @@ const make = Effect.gen(function* () {
   const electronApp = yield* ElectronApp.ElectronApp;
   const electronMenu = yield* ElectronMenu.ElectronMenu;
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
-  const appName = yield* electronApp.name;
   const context = yield* Effect.context<DesktopApplicationMenuRuntimeServices>();
   const runPromise = Effect.runPromiseWith(context);
 
@@ -121,6 +120,9 @@ const make = Effect.gen(function* () {
   };
 
   const configure = Effect.gen(function* () {
+    // Read the app name at configure-time so we pick up the value DesktopAppIdentity
+    // sets via electronApp.setName, rather than the default "Electron".
+    const appName = yield* electronApp.name;
     const checkForUpdatesClick = () => {
       runMenuEffect("check-for-updates", handleCheckForUpdatesMenuClick);
     };

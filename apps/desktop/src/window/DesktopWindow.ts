@@ -230,8 +230,14 @@ const make = Effect.gen(function* () {
     });
 
     window.webContents.setWindowOpenHandler(({ url }) => {
-      if (Option.isSome(ElectronShell.parseSafeExternalUrl(url))) {
-        void runPromise(electronShell.openExternal(url));
+      // Hand off to renderer; renderer decides between in-app browser and
+      // system browser based on user settings. http(s) is safe for either path;
+      // file:// is only ever loaded by the in-app browser (the renderer rejects
+      // it for the system path).
+      const isSafeHttp = Option.isSome(ElectronShell.parseSafeExternalUrl(url));
+      const isFile = typeof url === "string" && /^file:\/\//i.test(url);
+      if ((isSafeHttp || isFile) && !window.isDestroyed()) {
+        window.webContents.send(IpcChannels.BROWSER_EXTERNAL_LINK_CHANNEL, url);
       }
       return { action: "deny" };
     });

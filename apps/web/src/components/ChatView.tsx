@@ -147,6 +147,7 @@ import { ExpandedImageDialog } from "./chat/ExpandedImageDialog";
 import { PullRequestThreadDialog } from "./PullRequestThreadDialog";
 import { MessagesTimeline } from "./chat/MessagesTimeline";
 import { ChatHeader } from "./chat/ChatHeader";
+import { useBrowserPanelStore } from "./Browser/browserPanelStore";
 import { type ExpandedImagePreview } from "./chat/ExpandedImagePreview";
 import { NoActiveThreadState } from "./NoActiveThreadState";
 import { resolveEffectiveEnvMode, resolveEnvironmentOptionLabel } from "./BranchToolbar.logic";
@@ -866,6 +867,15 @@ export default function ChatView(props: ChatViewProps) {
     }
     return retainThreadDetailSubscription(environmentId, threadId);
   }, [environmentId, routeKind, threadId]);
+
+  // Scope the in-app browser to the active project: switching projects resets
+  // the panel so one project's preview doesn't bleed into another.
+  const activeProjectScopeKey = activeProjectRef
+    ? `${activeProjectRef.environmentId}/${activeProjectRef.projectId}`
+    : null;
+  useEffect(() => {
+    useBrowserPanelStore.getState().setScopeKey(activeProjectScopeKey);
+  }, [activeProjectScopeKey]);
 
   // Compute the list of environments this logical project spans, used to
   // drive the environment picker in BranchToolbar.

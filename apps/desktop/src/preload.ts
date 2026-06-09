@@ -96,6 +96,37 @@ contextBridge.exposeInMainWorld("desktopBridge", {
       ...(position === undefined ? {} : { position }),
     }),
   openExternal: (url: string) => ipcRenderer.invoke(IpcChannels.OPEN_EXTERNAL_CHANNEL, url),
+  browserShow: (input) => ipcRenderer.invoke(IpcChannels.BROWSER_SHOW_CHANNEL, input),
+  browserHide: () => ipcRenderer.invoke(IpcChannels.BROWSER_HIDE_CHANNEL),
+  browserSetBounds: (bounds) => {
+    ipcRenderer.send(IpcChannels.BROWSER_SET_BOUNDS_CHANNEL, bounds);
+  },
+  browserNavigate: (url: string) => ipcRenderer.invoke(IpcChannels.BROWSER_NAVIGATE_CHANNEL, url),
+  browserBack: () => ipcRenderer.invoke(IpcChannels.BROWSER_BACK_CHANNEL),
+  browserForward: () => ipcRenderer.invoke(IpcChannels.BROWSER_FORWARD_CHANNEL),
+  browserReload: () => ipcRenderer.invoke(IpcChannels.BROWSER_RELOAD_CHANNEL),
+  browserOpenPopout: (url: string) =>
+    ipcRenderer.invoke(IpcChannels.BROWSER_OPEN_POPOUT_CHANNEL, url),
+  onBrowserState: (listener) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, state: unknown) => {
+      if (typeof state !== "object" || state === null) return;
+      listener(state as Parameters<typeof listener>[0]);
+    };
+    ipcRenderer.on(IpcChannels.BROWSER_STATE_CHANNEL, wrapped);
+    return () => {
+      ipcRenderer.removeListener(IpcChannels.BROWSER_STATE_CHANNEL, wrapped);
+    };
+  },
+  onExternalLinkRequest: (listener) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, url: unknown) => {
+      if (typeof url !== "string") return;
+      listener(url);
+    };
+    ipcRenderer.on(IpcChannels.BROWSER_EXTERNAL_LINK_CHANNEL, wrapped);
+    return () => {
+      ipcRenderer.removeListener(IpcChannels.BROWSER_EXTERNAL_LINK_CHANNEL, wrapped);
+    };
+  },
   onMenuAction: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, action: unknown) => {
       if (typeof action !== "string") return;
@@ -113,6 +144,18 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   checkForUpdate: () => ipcRenderer.invoke(IpcChannels.UPDATE_CHECK_CHANNEL),
   downloadUpdate: () => ipcRenderer.invoke(IpcChannels.UPDATE_DOWNLOAD_CHANNEL),
   installUpdate: () => ipcRenderer.invoke(IpcChannels.UPDATE_INSTALL_CHANNEL),
+  githubAuthStartDeviceFlow: () =>
+    ipcRenderer.invoke(IpcChannels.GITHUB_AUTH_START_DEVICE_FLOW_CHANNEL),
+  githubAuthPollForToken: (device_code, currentInterval) =>
+    ipcRenderer.invoke(IpcChannels.GITHUB_AUTH_POLL_FOR_TOKEN_CHANNEL, {
+      device_code,
+      currentInterval,
+    }),
+  githubAuthGetStoredState: () =>
+    ipcRenderer.invoke(IpcChannels.GITHUB_AUTH_GET_STORED_STATE_CHANNEL),
+  githubAuthSignOut: () => ipcRenderer.invoke(IpcChannels.GITHUB_AUTH_SIGN_OUT_CHANNEL),
+  githubBootstrapProject: () =>
+    ipcRenderer.invoke(IpcChannels.GITHUB_BOOTSTRAP_PROJECT_CHANNEL),
   onUpdateState: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, state: unknown) => {
       if (typeof state !== "object" || state === null) return;

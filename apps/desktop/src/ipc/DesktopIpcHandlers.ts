@@ -41,6 +41,22 @@ import {
   setTheme,
   showContextMenu,
 } from "./methods/window.ts";
+import {
+  browserBack,
+  browserForward,
+  browserHide,
+  browserNavigate,
+  browserOpenPopout,
+  browserReload,
+  browserShow,
+} from "./methods/browser.ts";
+import {
+  githubAuthGetStoredState,
+  githubAuthPollForToken,
+  githubAuthSignOut,
+  githubAuthStartDeviceFlow,
+} from "./methods/githubAuth.ts";
+import { bootstrapPrototypesProject } from "./methods/projectBootstrap.ts";
 
 export const installDesktopIpcHandlers = Effect.gen(function* () {
   const ipc = yield* DesktopIpc.DesktopIpc;
@@ -76,9 +92,23 @@ export const installDesktopIpcHandlers = Effect.gen(function* () {
   yield* ipc.handle(showContextMenu);
   yield* ipc.handle(openExternal);
 
+  yield* ipc.handle(browserShow);
+  yield* ipc.handle(browserHide);
+  yield* ipc.handle(browserNavigate);
+  yield* ipc.handle(browserBack);
+  yield* ipc.handle(browserForward);
+  yield* ipc.handle(browserReload);
+  yield* ipc.handle(browserOpenPopout);
+
   yield* ipc.handle(getUpdateState);
   yield* ipc.handle(setUpdateChannel);
   yield* ipc.handle(downloadUpdate);
   yield* ipc.handle(installUpdate);
   yield* ipc.handle(checkForUpdate);
+
+  yield* ipc.handle(githubAuthStartDeviceFlow);
+  yield* ipc.handle(githubAuthPollForToken);
+  yield* ipc.handle(githubAuthGetStoredState);
+  yield* ipc.handle(githubAuthSignOut);
+  yield* ipc.handle(bootstrapPrototypesProject);
 }).pipe(Effect.withSpan("desktop.ipc.installHandlers"));

@@ -449,6 +449,16 @@ const createDesktopBridgeStub = (overrides?: {
     setTheme: vi.fn().mockResolvedValue(undefined),
     showContextMenu: vi.fn().mockResolvedValue(null),
     openExternal: vi.fn().mockResolvedValue(true),
+    browserShow: vi.fn().mockResolvedValue(undefined),
+    browserHide: vi.fn().mockResolvedValue(undefined),
+    browserSetBounds: vi.fn(),
+    browserNavigate: vi.fn().mockResolvedValue(undefined),
+    browserBack: vi.fn().mockResolvedValue(undefined),
+    browserForward: vi.fn().mockResolvedValue(undefined),
+    browserReload: vi.fn().mockResolvedValue(undefined),
+    browserOpenPopout: vi.fn().mockResolvedValue(undefined),
+    onBrowserState: () => () => {},
+    onExternalLinkRequest: () => () => {},
     onMenuAction: () => () => {},
     getUpdateState: vi.fn().mockResolvedValue(idleUpdateState),
     setUpdateChannel:
@@ -465,6 +475,17 @@ const createDesktopBridgeStub = (overrides?: {
       .fn()
       .mockResolvedValue({ accepted: false, completed: false, state: idleUpdateState }),
     onUpdateState: () => () => {},
+    githubAuthStartDeviceFlow: vi.fn().mockResolvedValue({
+      device_code: "device_code",
+      user_code: "ABCD-1234",
+      verification_uri: "https://github.com/login/device",
+      interval: 5,
+      expires_in: 900,
+    }),
+    githubAuthPollForToken: vi.fn().mockResolvedValue({ status: "pending" }),
+    githubAuthGetStoredState: vi.fn().mockResolvedValue({ token: null, user: null }),
+    githubAuthSignOut: vi.fn().mockResolvedValue(undefined),
+    githubBootstrapProject: vi.fn().mockResolvedValue({ error: "Not implemented in tests" } as const),
   };
 };
 
@@ -981,7 +1002,7 @@ describe("GeneralSettingsPanel observability", () => {
     await networkAccessToggle.click();
     await expect.element(page.getByText("Enable network access?")).toBeInTheDocument();
     await expect
-      .element(page.getByText("T3 Code will restart to expose this environment over the network."))
+      .element(page.getByText("Pallet will restart to expose this environment over the network."))
       .toBeInTheDocument();
     await page.getByRole("button", { name: "Restart and enable", exact: true }).click();
     await vi.waitFor(() => {

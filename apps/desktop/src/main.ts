@@ -44,6 +44,9 @@ import * as DesktopSshRemoteApi from "./ssh/DesktopSshRemoteApi.ts";
 import * as DesktopState from "./app/DesktopState.ts";
 import * as DesktopUpdates from "./updates/DesktopUpdates.ts";
 import * as DesktopWindow from "./window/DesktopWindow.ts";
+import * as InAppBrowser from "./browser/InAppBrowser.ts";
+import * as GithubDeviceFlow from "./auth/GithubDeviceFlow.ts";
+import * as GithubTokenStorage from "./auth/GithubTokenStorage.ts";
 
 const desktopEnvironmentLayer = Layer.unwrap(
   Effect.gen(function* () {
@@ -137,7 +140,10 @@ const desktopApplicationLayer = Layer.mergeAll(
   DesktopLifecycle.layer,
   DesktopApplicationMenu.layer,
   DesktopShellEnvironment.layer,
+  InAppBrowser.layer,
   desktopSshLayer,
+  GithubDeviceFlow.layer,
+  GithubTokenStorage.layer,
 ).pipe(Layer.provideMerge(DesktopUpdates.layer), Layer.provideMerge(desktopBackendLayer));
 
 const desktopRuntimeLayer = ElectronProtocol.layerSchemePrivileges.pipe(

@@ -80,7 +80,7 @@ export class DesktopEnvironment extends Context.Service<
   DesktopEnvironmentShape
 >()("t3/desktop/Environment") {}
 
-const APP_BASE_NAME = "T3 Code";
+const APP_BASE_NAME = "Pallet";
 
 function resolveDesktopAppStageLabel(input: {
   readonly isDevelopment: boolean;

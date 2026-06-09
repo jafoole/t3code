@@ -92,6 +92,9 @@ export const ClientSettingsSchema = Schema.Struct({
   timestampFormat: TimestampFormat.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_TIMESTAMP_FORMAT)),
   ),
+  defaultLinkTarget: Schema.Literals(["system", "in-app"]).pipe(
+    Schema.withDecodingDefault(Effect.succeed("in-app" as const)),
+  ),
 });
 export type ClientSettings = typeof ClientSettingsSchema.Type;
 
@@ -509,5 +512,6 @@ export const ClientSettingsPatch = Schema.Struct({
   sidebarThreadSortOrder: Schema.optionalKey(SidebarThreadSortOrder),
   sidebarThreadPreviewCount: Schema.optionalKey(SidebarThreadPreviewCount),
   timestampFormat: Schema.optionalKey(TimestampFormat),
+  defaultLinkTarget: Schema.optionalKey(Schema.Literals(["system", "in-app"])),
 });
 export type ClientSettingsPatch = typeof ClientSettingsPatch.Type;

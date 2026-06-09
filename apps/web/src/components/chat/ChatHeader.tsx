@@ -10,6 +10,10 @@ import { memo } from "react";
 import GitActionsControl from "../GitActionsControl";
 import { type DraftId } from "~/composerDraftStore";
 import { DiffIcon, TerminalSquareIcon } from "lucide-react";
+import { BrowserPanelToggleIcon } from "../Browser/BrowserPanelToggleIcon";
+import { useBrowserPanelStore } from "../Browser/browserPanelStore";
+import { usePrototypesPanelStore } from "../Prototypes/prototypesPanelStore";
+import { LayersIcon } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import ProjectScriptsControl, { type NewProjectScriptInput } from "../ProjectScriptsControl";
@@ -108,6 +112,7 @@ export const ChatHeader = memo(function ChatHeader({
             No Git
           </Badge>
         )}
+        <PrototypesPanelToggle />
       </div>
       <div className="flex shrink-0 items-center justify-end gap-2 @3xl/header-actions:gap-3">
         {activeProjectScripts && (
@@ -183,7 +188,64 @@ export const ChatHeader = memo(function ChatHeader({
                 : "Toggle diff panel"}
           </TooltipPopup>
         </Tooltip>
+        <BrowserPanelToggle />
       </div>
     </div>
   );
 });
+
+function PrototypesPanelToggle() {
+  const open = usePrototypesPanelStore((s) => s.open);
+  const toggle = usePrototypesPanelStore((s) => s.toggleOpen);
+  const enabledCount = usePrototypesPanelStore((s) => s.enabled.size);
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Toggle
+            className="shrink-0"
+            pressed={open}
+            onPressedChange={toggle}
+            aria-label="Toggle prototypes panel"
+            variant="outline"
+            size="xs"
+          >
+            <LayersIcon className="size-3" />
+            {enabledCount > 0 && (
+              <span className="ml-1 text-[10px] font-medium leading-none">{enabledCount}</span>
+            )}
+          </Toggle>
+        }
+      />
+      <TooltipPopup side="bottom">
+        {open ? "Close prototypes" : "Open prototypes"}
+      </TooltipPopup>
+    </Tooltip>
+  );
+}
+
+function BrowserPanelToggle() {
+  const open = useBrowserPanelStore((s) => s.open);
+  const toggle = useBrowserPanelStore((s) => s.toggleOpen);
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Toggle
+            className="shrink-0"
+            pressed={open}
+            onPressedChange={toggle}
+            aria-label="Toggle browser panel"
+            variant="outline"
+            size="xs"
+          >
+            <BrowserPanelToggleIcon open={open} />
+          </Toggle>
+        }
+      />
+      <TooltipPopup side="bottom">
+        {open ? "Close browser panel" : "Open browser panel"}
+      </TooltipPopup>
+    </Tooltip>
+  );
+}

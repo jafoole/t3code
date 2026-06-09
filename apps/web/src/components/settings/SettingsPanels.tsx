@@ -77,6 +77,7 @@ import {
 } from "./settingsLayout";
 import { ProjectFavicon } from "../ProjectFavicon";
 import { useServerObservability, useServerProviders } from "../../rpc/serverState";
+import { useGithubAuthStore } from "../onboarding/githubAuthStore";
 
 const THEME_OPTIONS = [
   {
@@ -377,6 +378,67 @@ function AboutVersionSection() {
   );
 }
 
+function GithubAccountSection() {
+  const status = useGithubAuthStore((s) => s.status);
+  const user = useGithubAuthStore((s) => s.user);
+  const { startSignIn, signOut } = useGithubAuthStore.getState();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = useCallback(async () => {
+    setIsSigningOut(true);
+    await signOut().catch(() => undefined);
+    setIsSigningOut(false);
+  }, [signOut]);
+
+  return (
+    <SettingsSection title="GitHub Account">
+      {status === "signed-in" && user ? (
+        <SettingsRow
+          title={
+            <span className="inline-flex items-center gap-2">
+              {user.avatar_url ? (
+                <img
+                  src={user.avatar_url}
+                  alt={user.login}
+                  className="size-5 rounded-full"
+                />
+              ) : null}
+              <span>{user.name ?? user.login}</span>
+              <code className="text-[11px] font-medium text-muted-foreground">@{user.login}</code>
+            </span>
+          }
+          description="Signed in with GitHub."
+          control={
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={isSigningOut}
+              onClick={() => void handleSignOut()}
+            >
+              Sign out
+            </Button>
+          }
+        />
+      ) : (
+        <SettingsRow
+          title="Not signed in"
+          description="Sign in with GitHub to access the Sortly prototypes repository."
+          control={
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={status === "loading" || status === "awaiting-approval" || status === "setting-up"}
+              onClick={() => void startSignIn()}
+            >
+              Sign in with GitHub
+            </Button>
+          }
+        />
+      )}
+    </SettingsSection>
+  );
+}
+
 export function useSettingsRestore(onRestored?: () => void) {
   const { theme, setTheme } = useTheme();
   const settings = useSettings();
@@ -519,7 +581,7 @@ export function GeneralSettingsPanel() {
       <SettingsSection title="General">
         <SettingsRow
           title="Theme"
-          description="Choose how T3 Code looks across the app."
+          description="Choose how Pallet looks across the app."
           resetAction={
             theme !== "system" ? (
               <SettingResetButton label="theme" onClick={() => setTheme("system")} />
@@ -692,6 +754,45 @@ export function GeneralSettingsPanel() {
               }
               aria-label="Open the task panel automatically"
             />
+          }
+        />
+
+        <SettingsRow
+          title="Open links in"
+          description="Where to open external links — the built-in browser panel, or your system browser."
+          resetAction={
+            settings.defaultLinkTarget !== DEFAULT_UNIFIED_SETTINGS.defaultLinkTarget ? (
+              <SettingResetButton
+                label="link target"
+                onClick={() =>
+                  updateSettings({ defaultLinkTarget: DEFAULT_UNIFIED_SETTINGS.defaultLinkTarget })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Select
+              value={settings.defaultLinkTarget}
+              onValueChange={(value) => {
+                if (value === "in-app" || value === "system") {
+                  updateSettings({ defaultLinkTarget: value });
+                }
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-44" aria-label="Default link target">
+                <SelectValue>
+                  {settings.defaultLinkTarget === "in-app" ? "Built-in browser" : "System browser"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectPopup align="end" alignItemWithTrigger={false}>
+                <SelectItem hideIndicator value="in-app">
+                  Built-in browser
+                </SelectItem>
+                <SelectItem hideIndicator value="system">
+                  System browser
+                </SelectItem>
+              </SelectPopup>
+            </Select>
           }
         />
 
@@ -890,6 +991,8 @@ export function GeneralSettingsPanel() {
           }
         />
       </SettingsSection>
+
+      {isElectron ? <GithubAccountSection /> : null}
 
       <SettingsSection title="About">
         {isElectron || HOSTED_APP_CHANNEL ? (

@@ -62,6 +62,8 @@ import {
   updatePrimaryEnvironmentDescriptor,
 } from "../environments/primary";
 import { hasHostedPairingRequest, isHostedStaticApp } from "../hostedPairing";
+import { isGithubDemoMode, useGithubAuthStore } from "../components/onboarding/githubAuthStore";
+import { GithubSignInScreen } from "../components/onboarding/GithubSignInScreen";
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
@@ -104,6 +106,9 @@ function RootRouteView() {
   const { authGateState } = Route.useRouteContext();
   const primaryEnvironmentAuthenticated = authGateState.status === "authenticated";
 
+  // GitHub auth state — hooks must be before any early returns (rules-of-hooks)
+  const githubAuthStatus = useGithubAuthStore((s) => s.status);
+
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       syncBrowserChromeTheme();
@@ -113,12 +118,28 @@ function RootRouteView() {
     };
   }, [pathname]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined" && (window.desktopBridge || isGithubDemoMode())) {
+      void useGithubAuthStore.getState().bootstrap();
+    }
+  }, []);
+
   if (pathname === "/pair") {
     return <Outlet />;
   }
 
   if (authGateState.status !== "authenticated" && authGateState.status !== "hosted-static") {
     return <Outlet />;
+  }
+
+  // GitHub sign-in gate: for desktop (or demo mode), only when not signed in
+  if (
+    typeof window !== "undefined" &&
+    (window.desktopBridge || isGithubDemoMode()) &&
+    githubAuthStatus !== "loading" &&
+    githubAuthStatus !== "signed-in"
+  ) {
+    return <GithubSignInScreen />;
   }
 
   const appShell = (

@@ -5,6 +5,10 @@
 - All of `bun fmt`, `bun lint`, and `bun typecheck` must pass before considering tasks completed.
 - NEVER run `bun test`. Always use `bun run test` (runs Vitest).
 
+## Running Pallet (Dev)
+
+To start the local dev build of the Electron desktop app (a.k.a. "Pallet Dev" / "Pallet (Dev)"): run `bun dev:desktop` from the repo root. This launches the Electron Mac app the user has been building — do NOT use `bun dev`, which only starts the web/server (opens in a browser) and is NOT what the user wants when they say "Pallet". If the user asks to "spin up Pallet", "open Pallet Dev", or similar, run `bun dev:desktop`.
+
 ## Project Snapshot
 
 T3 Code is a minimal web GUI for using coding agents like Codex and Claude.

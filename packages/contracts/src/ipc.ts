@@ -78,6 +78,24 @@ import type {
   SourceControlRepositoryLookupInput,
 } from "./sourceControl.ts";
 
+export interface GithubUser {
+  readonly login: string;
+  readonly name: string | null;
+  readonly avatar_url: string;
+}
+
+export type GithubPollResult =
+  | { readonly status: "pending" }
+  | { readonly status: "slow_down"; readonly interval: number }
+  | { readonly status: "success"; readonly user: GithubUser }
+  | { readonly status: "denied" }
+  | { readonly status: "expired" }
+  | { readonly status: "error"; readonly message: string };
+
+export type GithubBootstrapResult =
+  | { readonly path: string }
+  | { readonly error: string };
+
 export interface ContextMenuItem<T extends string = string> {
   id: T;
   label: string;
@@ -369,6 +387,46 @@ export const PickFolderOptionsSchema = Schema.Struct({
   initialPath: Schema.optionalKey(Schema.NullOr(Schema.String)),
 });
 
+export interface BrowserBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export const BrowserBoundsSchema = Schema.Struct({
+  x: Schema.Number,
+  y: Schema.Number,
+  width: Schema.Number,
+  height: Schema.Number,
+});
+
+export interface BrowserShowInput {
+  url: string;
+  bounds: BrowserBounds;
+}
+
+export const BrowserShowInputSchema = Schema.Struct({
+  url: Schema.String,
+  bounds: BrowserBoundsSchema,
+});
+
+export interface BrowserNavigationState {
+  url: string;
+  title: string;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  loading: boolean;
+}
+
+export const BrowserNavigationStateSchema = Schema.Struct({
+  url: Schema.String,
+  title: Schema.String,
+  canGoBack: Schema.Boolean,
+  canGoForward: Schema.Boolean,
+  loading: Schema.Boolean,
+});
+
 export interface DesktopBridge {
   getAppBranding: () => DesktopAppBranding | null;
   getLocalEnvironmentBootstrap: () => DesktopEnvironmentBootstrap | null;
@@ -414,6 +472,16 @@ export interface DesktopBridge {
     position?: { x: number; y: number },
   ) => Promise<T | null>;
   openExternal: (url: string) => Promise<boolean>;
+  browserShow: (input: BrowserShowInput) => Promise<void>;
+  browserHide: () => Promise<void>;
+  browserSetBounds: (bounds: BrowserBounds) => void;
+  browserNavigate: (url: string) => Promise<void>;
+  browserBack: () => Promise<void>;
+  browserForward: () => Promise<void>;
+  browserReload: () => Promise<void>;
+  browserOpenPopout: (url: string) => Promise<void>;
+  onBrowserState: (listener: (state: BrowserNavigationState) => void) => () => void;
+  onExternalLinkRequest: (listener: (url: string) => void) => () => void;
   onMenuAction: (listener: (action: string) => void) => () => void;
   getUpdateState: () => Promise<DesktopUpdateState>;
   setUpdateChannel: (channel: DesktopUpdateChannel) => Promise<DesktopUpdateState>;
@@ -421,6 +489,17 @@ export interface DesktopBridge {
   downloadUpdate: () => Promise<DesktopUpdateActionResult>;
   installUpdate: () => Promise<DesktopUpdateActionResult>;
   onUpdateState: (listener: (state: DesktopUpdateState) => void) => () => void;
+  githubAuthStartDeviceFlow: () => Promise<{
+    device_code: string;
+    user_code: string;
+    verification_uri: string;
+    interval: number;
+    expires_in: number;
+  }>;
+  githubAuthPollForToken: (device_code: string, currentInterval: number) => Promise<GithubPollResult>;
+  githubAuthGetStoredState: () => Promise<{ token: string | null; user: GithubUser | null }>;
+  githubAuthSignOut: () => Promise<void>;
+  githubBootstrapProject: () => Promise<GithubBootstrapResult>;
 }
 
 /**

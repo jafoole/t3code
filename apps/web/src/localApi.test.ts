@@ -225,6 +225,16 @@ function makeDesktopBridge(overrides: Partial<DesktopBridge> = {}): DesktopBridg
     setTheme: async () => undefined,
     showContextMenu: async () => null,
     openExternal: async () => true,
+    browserShow: async () => undefined,
+    browserHide: async () => undefined,
+    browserSetBounds: () => undefined,
+    browserNavigate: async () => undefined,
+    browserBack: async () => undefined,
+    browserForward: async () => undefined,
+    browserReload: async () => undefined,
+    browserOpenPopout: async () => undefined,
+    onBrowserState: () => () => undefined,
+    onExternalLinkRequest: () => () => undefined,
     onMenuAction: () => () => undefined,
     getUpdateState: async () => {
       throw new Error("getUpdateState not implemented in test");
@@ -242,6 +252,13 @@ function makeDesktopBridge(overrides: Partial<DesktopBridge> = {}): DesktopBridg
       throw new Error("installUpdate not implemented in test");
     },
     onUpdateState: () => () => undefined,
+    githubAuthStartDeviceFlow: async () => {
+      throw new Error("githubAuthStartDeviceFlow not implemented in test");
+    },
+    githubAuthPollForToken: async () => ({ status: "pending" as const }),
+    githubAuthGetStoredState: async () => ({ token: null, user: null }),
+    githubAuthSignOut: async () => undefined,
+    githubBootstrapProject: async () => ({ error: "Not implemented in test" } as const),
     ...overrides,
   };
 }
@@ -615,6 +632,7 @@ describe("wsApi", () => {
       sidebarThreadSortOrder: "created_at" as const,
       sidebarThreadPreviewCount: 6,
       timestampFormat: "24-hour" as const,
+      defaultLinkTarget: "system" as const,
     };
     const getClientSettings = vi.fn().mockResolvedValue({
       ...clientSettings,
@@ -678,6 +696,7 @@ describe("wsApi", () => {
       sidebarThreadSortOrder: "created_at" as const,
       sidebarThreadPreviewCount: 6,
       timestampFormat: "24-hour" as const,
+      defaultLinkTarget: "system" as const,
     };
 
     await api.persistence.setClientSettings(clientSettings);
