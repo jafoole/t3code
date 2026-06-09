@@ -51,7 +51,7 @@ export interface GithubTokenStorageShape {
 export class GithubTokenStorage extends Context.Service<
   GithubTokenStorage,
   GithubTokenStorageShape
->()("t3/desktop/GithubTokenStorage") {}
+>()("@t3tools/desktop/auth/GithubTokenStorage") {}
 
 const EMPTY_DOCUMENT = {};
 

@@ -23,7 +23,7 @@ export interface InAppBrowserShape {
 }
 
 export class InAppBrowser extends Context.Service<InAppBrowser, InAppBrowserShape>()(
-  "t3/desktop/InAppBrowser",
+  "@t3tools/desktop/browser/InAppBrowser",
 ) {}
 
 const { logInfo, logWarning } = DesktopObservability.makeComponentLogger("desktop-in-app-browser");

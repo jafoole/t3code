@@ -1,3 +1,5 @@
+// @effect-diagnostics globalFetchInEffect:off
+// @effect-diagnostics preferSchemaOverJson:off
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
@@ -38,7 +40,7 @@ export interface GithubDeviceFlowShape {
 export class GithubDeviceFlow extends Context.Service<
   GithubDeviceFlow,
   GithubDeviceFlowShape
->()("t3/desktop/GithubDeviceFlow") {}
+>()("@t3tools/desktop/auth/GithubDeviceFlow") {}
 
 const make = GithubDeviceFlow.of({
   startFlow: () =>
