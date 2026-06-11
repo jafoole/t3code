@@ -99,6 +99,8 @@ export type GithubBootstrapResult =
   | { readonly path: string }
   | { readonly error: string };
 
+export type GithubBootstrapRepo = "prototypes" | "sortlyBuild";
+
 export interface ContextMenuItem<T extends string = string> {
   id: T;
   label: string;
@@ -530,7 +532,7 @@ export interface DesktopBridge {
   githubAuthPollForToken: (device_code: string, currentInterval: number) => Promise<GithubPollResult>;
   githubAuthGetStoredState: () => Promise<{ token: string | null; user: GithubUser | null }>;
   githubAuthSignOut: () => Promise<void>;
-  githubBootstrapProject: () => Promise<GithubBootstrapResult>;
+  githubBootstrapProject: (repo?: GithubBootstrapRepo) => Promise<GithubBootstrapResult>;
 }
 
 /**

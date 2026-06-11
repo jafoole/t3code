@@ -171,8 +171,8 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   githubAuthGetStoredState: () =>
     ipcRenderer.invoke(IpcChannels.GITHUB_AUTH_GET_STORED_STATE_CHANNEL),
   githubAuthSignOut: () => ipcRenderer.invoke(IpcChannels.GITHUB_AUTH_SIGN_OUT_CHANNEL),
-  githubBootstrapProject: () =>
-    ipcRenderer.invoke(IpcChannels.GITHUB_BOOTSTRAP_PROJECT_CHANNEL),
+  githubBootstrapProject: (repo = "prototypes") =>
+    ipcRenderer.invoke(IpcChannels.GITHUB_BOOTSTRAP_PROJECT_CHANNEL, repo),
   onUpdateState: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, state: unknown) => {
       if (typeof state !== "object" || state === null) return;

@@ -87,7 +87,7 @@ async function runDemoSignIn(): Promise<void> {
   useGithubAuthStore.setState({ status: "signed-in", user: DEMO_USER });
 }
 
-async function ensureSortlyProject(destPath: string): Promise<void> {
+async function ensureSortlyProject(destPath: string, title = "Sortly Prototypes"): Promise<void> {
   const conn = getPrimaryEnvironmentConnection();
   if (!conn) return;
 
@@ -102,7 +102,7 @@ async function ensureSortlyProject(destPath: string): Promise<void> {
     type: "project.create",
     commandId: newCommandId(),
     projectId: newProjectId(),
-    title: "Sortly Prototypes",
+    title,
     workspaceRoot: destPath,
     createWorkspaceRootIfMissing: false,
     defaultModelSelection: {
@@ -111,6 +111,14 @@ async function ensureSortlyProject(destPath: string): Promise<void> {
     },
     createdAt: new Date().toISOString(),
   });
+}
+
+async function bootstrapSortlyBuildProject(
+  bridge: NonNullable<typeof window.desktopBridge>,
+): Promise<void> {
+  const result = await bridge.githubBootstrapProject("sortlyBuild");
+  if ("error" in result) return;
+  await ensureSortlyProject(result.path, "Sortly Build").catch(() => undefined);
 }
 
 async function runPoll(deviceCode: string, currentInterval: number): Promise<void> {
@@ -138,6 +146,7 @@ async function runPoll(deviceCode: string, currentInterval: number): Promise<voi
       }
 
       await ensureSortlyProject(bootstrapResult.path).catch(() => undefined);
+      await bootstrapSortlyBuildProject(bridge).catch(() => undefined);
       useGithubAuthStore.setState({ status: "signed-in", user: result.user });
       return;
     }
@@ -214,6 +223,7 @@ export const useGithubAuthStore = create<GithubAuthState>()((set) => ({
             if ("error" in result) return;
             void ensureSortlyProject(result.path).catch(() => undefined);
           })
+          .then(() => bootstrapSortlyBuildProject(bridge))
           .catch(() => undefined);
         return;
       }

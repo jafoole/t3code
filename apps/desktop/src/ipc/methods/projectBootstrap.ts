@@ -12,8 +12,17 @@ import * as GithubTokenStorage from "../../auth/GithubTokenStorage.ts";
 import * as IpcChannels from "../channels.ts";
 import { makeIpcMethod } from "../DesktopIpc.ts";
 
-const REPO_SLUG = "jafoole/sortly-prototypes";
-const DEST_DIR_NAME = "Sortly Prototypes";
+const BOOTSTRAP_REPOS = {
+  prototypes: { slug: "jafoole/sortly-prototypes", dirName: "Sortly Prototypes" },
+  sortlyBuild: { slug: "jagratsortly/SortlyBuild", dirName: "Sortly Build" },
+} as const;
+
+type BootstrapRepoKey = keyof typeof BOOTSTRAP_REPOS;
+
+const BootstrapRepoSchema = Schema.Union([
+  Schema.Literal("prototypes"),
+  Schema.Literal("sortlyBuild"),
+]);
 
 const BootstrapResultSchema = Schema.Union([
   Schema.Struct({ path: Schema.String }),
@@ -38,13 +47,16 @@ const runGit = (args: readonly string[], cwd?: string) =>
     );
   });
 
-const doBootstrap = Effect.fn("desktop.ipc.projectBootstrap.doBootstrap")(function* (): Effect.fn.Return<
+const doBootstrap = Effect.fn("desktop.ipc.projectBootstrap.doBootstrap")(function* (
+  repoKey: BootstrapRepoKey,
+): Effect.fn.Return<
   typeof BootstrapResultSchema.Type,
   ProjectBootstrapError,
   FileSystem.FileSystem | GithubTokenStorage.GithubTokenStorage | ChildProcessSpawner.ChildProcessSpawner
 > {
+  const repo = BOOTSTRAP_REPOS[repoKey];
   const homeDir = NodeOS.homedir();
-  const dest = `${homeDir}/${DEST_DIR_NAME}`;
+  const dest = `${homeDir}/${repo.dirName}`;
   const fileSystem = yield* FileSystem.FileSystem;
 
   const destExists = yield* fileSystem.exists(dest).pipe(
@@ -62,9 +74,9 @@ const doBootstrap = Effect.fn("desktop.ipc.projectBootstrap.doBootstrap")(functi
       Effect.option,
       Effect.map(Option.getOrElse(() => "")),
     );
-    if (!gitConfigContent.includes(REPO_SLUG)) {
+    if (!gitConfigContent.includes(repo.slug)) {
       return {
-        error: `A folder named "${DEST_DIR_NAME}" already exists at ${dest} but is not the Sortly Prototypes repository.`,
+        error: `A folder named "${repo.dirName}" already exists at ${dest} but is not the ${repo.slug} repository.`,
       };
     }
   } else {
@@ -75,7 +87,7 @@ const doBootstrap = Effect.fn("desktop.ipc.projectBootstrap.doBootstrap")(functi
     const token = tokenOption.value;
     const cloneExitCode = yield* runGit([
       "clone",
-      `https://oauth2:${token}@github.com/${REPO_SLUG}.git`,
+      `https://oauth2:${token}@github.com/${repo.slug}.git`,
       dest,
     ]);
 
@@ -89,7 +101,7 @@ const doBootstrap = Effect.fn("desktop.ipc.projectBootstrap.doBootstrap")(functi
     }
 
     yield* runGit(
-      ["remote", "set-url", "origin", `https://github.com/${REPO_SLUG}.git`],
+      ["remote", "set-url", "origin", `https://github.com/${repo.slug}.git`],
       dest,
     ).pipe(Effect.catch(() => Effect.void));
   }
@@ -99,10 +111,10 @@ const doBootstrap = Effect.fn("desktop.ipc.projectBootstrap.doBootstrap")(functi
 
 export const bootstrapPrototypesProject = makeIpcMethod({
   channel: IpcChannels.GITHUB_BOOTSTRAP_PROJECT_CHANNEL,
-  payload: Schema.Void,
+  payload: BootstrapRepoSchema,
   result: BootstrapResultSchema,
-  handler: Effect.fn("desktop.ipc.projectBootstrap.bootstrap")(function* () {
-    const bootstrapResult = yield* Effect.result(doBootstrap());
+  handler: Effect.fn("desktop.ipc.projectBootstrap.bootstrap")(function* (repoKey) {
+    const bootstrapResult = yield* Effect.result(doBootstrap(repoKey));
     if (Result.isSuccess(bootstrapResult)) {
       return bootstrapResult.success;
     }
