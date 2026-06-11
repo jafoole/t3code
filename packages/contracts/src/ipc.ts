@@ -101,6 +101,17 @@ export type GithubBootstrapResult =
 
 export type GithubBootstrapRepo = "prototypes" | "sortlyBuild";
 
+export interface SortlyQuickInfo {
+  readonly id: string;
+  readonly name: string;
+  readonly viewUrl: string;
+  readonly editUrl: string;
+}
+
+export type SortlyQuickCreateResult =
+  | (SortlyQuickInfo & { readonly path: string })
+  | { readonly error: string };
+
 export interface ContextMenuItem<T extends string = string> {
   id: T;
   label: string;
@@ -533,6 +544,8 @@ export interface DesktopBridge {
   githubAuthGetStoredState: () => Promise<{ token: string | null; user: GithubUser | null }>;
   githubAuthSignOut: () => Promise<void>;
   githubBootstrapProject: (repo?: GithubBootstrapRepo) => Promise<GithubBootstrapResult>;
+  sortlyQuickCreate: (name: string) => Promise<SortlyQuickCreateResult>;
+  sortlyQuickInfo: (workspaceRoot: string) => Promise<SortlyQuickInfo | null>;
 }
 
 /**

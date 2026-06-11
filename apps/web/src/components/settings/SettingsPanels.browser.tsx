@@ -512,6 +512,8 @@ const createDesktopBridgeStub = (overrides?: {
     githubAuthGetStoredState: vi.fn().mockResolvedValue({ token: null, user: null }),
     githubAuthSignOut: vi.fn().mockResolvedValue(undefined),
     githubBootstrapProject: vi.fn().mockResolvedValue({ error: "Not implemented in tests" } as const),
+    sortlyQuickCreate: vi.fn().mockResolvedValue({ error: "Not implemented in tests" } as const),
+    sortlyQuickInfo: vi.fn().mockResolvedValue(null),
   };
 };
 

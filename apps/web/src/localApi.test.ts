@@ -280,6 +280,8 @@ function makeDesktopBridge(overrides: Partial<DesktopBridge> = {}): DesktopBridg
     githubAuthGetStoredState: async () => ({ token: null, user: null }),
     githubAuthSignOut: async () => undefined,
     githubBootstrapProject: async () => ({ error: "Not implemented in test" } as const),
+    sortlyQuickCreate: async () => ({ error: "Not implemented in test" } as const),
+    sortlyQuickInfo: async () => null,
     ...overrides,
   };
 }

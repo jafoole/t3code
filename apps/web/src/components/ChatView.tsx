@@ -150,6 +150,7 @@ import { PullRequestThreadDialog } from "./PullRequestThreadDialog";
 import { MessagesTimeline } from "./chat/MessagesTimeline";
 import { ChatHeader } from "./chat/ChatHeader";
 import { useBrowserPanelStore } from "./Browser/browserPanelStore";
+import { isSortlyQuickWorkspace } from "./SortlyQuick/createSortlyQuick";
 import { type ExpandedImagePreview } from "./chat/ExpandedImagePreview";
 import { NoActiveThreadState } from "./NoActiveThreadState";
 import { resolveEffectiveEnvMode, resolveEnvironmentOptionLabel } from "./BranchToolbar.logic";
@@ -1081,6 +1082,23 @@ export default function ChatView(props: ChatViewProps) {
   useEffect(() => {
     useBrowserPanelStore.getState().setScopeKey(activeProjectScopeKey);
   }, [activeProjectScopeKey]);
+
+  // Sortly Quick projects: auto-open the canvas on the prototype's edit URL.
+  // Runs after the scope effect above so its reset doesn't clobber the URL.
+  const activeQuickRoot = activeProject?.cwd ?? null;
+  useEffect(() => {
+    if (!activeQuickRoot || !isSortlyQuickWorkspace(activeQuickRoot)) return;
+    let cancelled = false;
+    void window.desktopBridge?.sortlyQuickInfo?.(activeQuickRoot).then((info) => {
+      if (cancelled || !info) return;
+      const store = useBrowserPanelStore.getState();
+      store.setUrl(info.editUrl);
+      store.setOpen(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeQuickRoot]);
 
   // Compute the list of environments this logical project spans, used to
   // drive the environment picker in BranchToolbar.

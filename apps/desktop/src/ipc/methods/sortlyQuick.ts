@@ -1,0 +1,183 @@
+// @effect-diagnostics globalFetchInEffect:off
+// @effect-diagnostics preferSchemaOverJson:off
+import * as NodeOS from "node:os";
+
+import * as Data from "effect/Data";
+import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
+import * as Path from "effect/Path";
+import * as Result from "effect/Result";
+import * as Schema from "effect/Schema";
+
+import * as IpcChannels from "../channels.ts";
+import { makeIpcMethod } from "../DesktopIpc.ts";
+
+const SORTLY_QUICK_BASE_URL = "https://sortly-quick.vercel.app";
+const QUICKS_DIR_NAME = "Sortly Quicks";
+const QUICK_MANIFEST_FILE = "quick.json";
+
+const CreatePayloadSchema = Schema.Struct({ name: Schema.String });
+
+const QuickInfoSchema = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  viewUrl: Schema.String,
+  editUrl: Schema.String,
+});
+
+const CreateResultSchema = Schema.Union([
+  Schema.Struct({
+    path: Schema.String,
+    id: Schema.String,
+    name: Schema.String,
+    viewUrl: Schema.String,
+    editUrl: Schema.String,
+  }),
+  Schema.Struct({ error: Schema.String }),
+]);
+
+const InfoPayloadSchema = Schema.Struct({ workspaceRoot: Schema.String });
+const InfoResultSchema = Schema.NullOr(QuickInfoSchema);
+
+// The agent's standing orders for every Quick workspace. The workspace holds
+// no app code — the prototype lives on the Sortly Quick server and is reached
+// exclusively through the MCP tools configured in .mcp.json.
+function buildWorkspaceClaudeMd(name: string, viewUrl: string): string {
+  return `# Sortly Quick — ${name}
+
+This workspace controls one Sortly Quick prototype. It is rendered live at:
+${viewUrl}
+
+## How to work here
+
+- You have MCP tools from the \`sortly-quick\` server: \`read_prototype\`,
+  \`update_prototype\`, and \`get_design_system_catalog\`.
+- Start every task by calling \`get_design_system_catalog\` (once per session)
+  and \`read_prototype\` so you know the available components and current code.
+- Make changes by calling \`update_prototype\` with the COMPLETE new source.
+- The prototype runtime accepts ONLY components from the Sortly design system
+  catalog plus React hooks (useState, useEffect, useRef, useMemo, useCallback)
+  as bare identifiers. No imports. No external libraries. No Tailwind classes
+  outside the catalog's tokens.
+- If a component you need is missing from the catalog, build the closest
+  approximation from allowed primitives and add a line to GAPS.md in this
+  workspace describing what was missing — the design team uses that file to
+  grow the design system.
+- Do NOT create local source files; the prototype's only home is the server.
+  The user sees changes in their canvas immediately after update_prototype.
+`;
+}
+
+class SortlyQuickError extends Data.TaggedError("SortlyQuickError")<{
+  readonly message: string;
+}> {}
+
+const fetchJson = (url: string, init: RequestInit) =>
+  Effect.tryPromise({
+    try: async () => {
+      const response = await fetch(url, init);
+      if (!response.ok) {
+        throw new Error(`Sortly Quick server returned ${response.status}`);
+      }
+      return (await response.json()) as Record<string, unknown>;
+    },
+    catch: (cause) =>
+      new SortlyQuickError({
+        message: cause instanceof Error ? cause.message : String(cause),
+      }),
+  });
+
+function slugify(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-+|-+$/g, "")
+    .slice(0, 40);
+  return slug || "quick";
+}
+
+const doCreate = Effect.fn("desktop.ipc.sortlyQuick.doCreate")(function* (name: string) {
+  const fileSystem = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+
+  const created = yield* fetchJson(`${SORTLY_QUICK_BASE_URL}/api/prototypes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+
+  const id = typeof created.id === "string" ? created.id : null;
+  const editToken = typeof created.edit_token === "string" ? created.edit_token : null;
+  if (!id || !editToken) {
+    return { error: "Sortly Quick server response was missing id or edit token." };
+  }
+
+  const viewUrl = `${SORTLY_QUICK_BASE_URL}/p/${id}`;
+  const editUrl = `${viewUrl}?edit=${editToken}`;
+  const mcpUrl = `${SORTLY_QUICK_BASE_URL}/api/mcp/${id}?edit=${editToken}`;
+
+  const workspaceRoot = path.join(
+    NodeOS.homedir(),
+    QUICKS_DIR_NAME,
+    `${slugify(name)}-${id}`,
+  );
+  yield* fileSystem.makeDirectory(path.join(workspaceRoot, ".claude"), { recursive: true });
+
+  // .mcp.json is how the Claude Code engine discovers the prototype's MCP
+  // server — no user-facing connection setup. The edit token lives in this
+  // local file only; the workspace is never committed anywhere.
+  yield* fileSystem.writeFileString(
+    path.join(workspaceRoot, ".mcp.json"),
+    JSON.stringify(
+      { mcpServers: { "sortly-quick": { type: "http", url: mcpUrl } } },
+      null,
+      2,
+    ),
+  );
+  yield* fileSystem.writeFileString(
+    path.join(workspaceRoot, ".claude", "settings.json"),
+    JSON.stringify({ enableAllProjectMcpServers: true }, null, 2),
+  );
+  yield* fileSystem.writeFileString(
+    path.join(workspaceRoot, "CLAUDE.md"),
+    buildWorkspaceClaudeMd(name, viewUrl),
+  );
+  yield* fileSystem.writeFileString(
+    path.join(workspaceRoot, QUICK_MANIFEST_FILE),
+    JSON.stringify({ id, name, viewUrl, editUrl }, null, 2),
+  );
+
+  return { path: workspaceRoot, id, name, viewUrl, editUrl };
+});
+
+export const sortlyQuickCreate = makeIpcMethod({
+  channel: IpcChannels.SORTLY_QUICK_CREATE_CHANNEL,
+  payload: CreatePayloadSchema,
+  result: CreateResultSchema,
+  handler: Effect.fn("desktop.ipc.sortlyQuick.create")(function* ({ name }) {
+    const result = yield* Effect.result(doCreate(name));
+    if (Result.isSuccess(result)) {
+      return result.success;
+    }
+    return { error: result.failure.message };
+  }),
+});
+
+export const sortlyQuickInfo = makeIpcMethod({
+  channel: IpcChannels.SORTLY_QUICK_INFO_CHANNEL,
+  payload: InfoPayloadSchema,
+  result: InfoResultSchema,
+  handler: Effect.fn("desktop.ipc.sortlyQuick.info")(function* ({ workspaceRoot }) {
+    const fileSystem = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const manifestPath = path.join(workspaceRoot, QUICK_MANIFEST_FILE);
+    const raw = yield* fileSystem
+      .readFileString(manifestPath)
+      .pipe(Effect.orElseSucceed(() => null));
+    if (raw === null) return null;
+    const decoded = yield* Schema.decodeUnknownEffect(
+      Schema.fromJsonString(QuickInfoSchema),
+    )(raw).pipe(Effect.orElseSucceed(() => null));
+    return decoded;
+  }),
+});

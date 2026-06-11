@@ -173,6 +173,10 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   githubAuthSignOut: () => ipcRenderer.invoke(IpcChannels.GITHUB_AUTH_SIGN_OUT_CHANNEL),
   githubBootstrapProject: (repo = "prototypes") =>
     ipcRenderer.invoke(IpcChannels.GITHUB_BOOTSTRAP_PROJECT_CHANNEL, repo),
+  sortlyQuickCreate: (name: string) =>
+    ipcRenderer.invoke(IpcChannels.SORTLY_QUICK_CREATE_CHANNEL, { name }),
+  sortlyQuickInfo: (workspaceRoot: string) =>
+    ipcRenderer.invoke(IpcChannels.SORTLY_QUICK_INFO_CHANNEL, { workspaceRoot }),
   onUpdateState: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, state: unknown) => {
       if (typeof state !== "object" || state === null) return;

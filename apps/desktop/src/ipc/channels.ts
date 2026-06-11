@@ -56,3 +56,6 @@ export const GITHUB_AUTH_POLL_FOR_TOKEN_CHANNEL = "desktop:github-auth-poll-for-
 export const GITHUB_AUTH_GET_STORED_STATE_CHANNEL = "desktop:github-auth-get-stored-state";
 export const GITHUB_AUTH_SIGN_OUT_CHANNEL = "desktop:github-auth-sign-out";
 export const GITHUB_BOOTSTRAP_PROJECT_CHANNEL = "desktop:github-bootstrap-project";
+
+export const SORTLY_QUICK_CREATE_CHANNEL = "desktop:sortly-quick-create";
+export const SORTLY_QUICK_INFO_CHANNEL = "desktop:sortly-quick-info";
