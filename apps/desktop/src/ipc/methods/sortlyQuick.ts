@@ -51,10 +51,12 @@ ${viewUrl}
 ## How to work here
 
 - You have MCP tools from the \`sortly-quick\` server: \`read_prototype\`,
-  \`update_prototype\`, and \`get_design_system_catalog\`.
+  \`edit_prototype\`, \`update_prototype\`, and \`get_design_system_catalog\`.
 - Start every task by calling \`get_design_system_catalog\` (once per session)
   and \`read_prototype\` so you know the available components and current code.
-- Make changes by calling \`update_prototype\` with the COMPLETE new source.
+- For small or targeted changes, ALWAYS use \`edit_prototype\` (exact
+  find & replace) — it is dramatically faster. Only use \`update_prototype\`
+  (complete source replacement) when rewriting most of the file.
 - The prototype runtime accepts ONLY components from the Sortly design system
   catalog plus React hooks (useState, useEffect, useRef, useMemo, useCallback)
   as bare identifiers. No imports. No external libraries. No Tailwind classes
