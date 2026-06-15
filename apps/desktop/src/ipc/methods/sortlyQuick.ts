@@ -72,8 +72,14 @@ ${viewUrl}
 
 When the user asks to convert this Quick into a real Sortly prototype (or clicks
 the "Make it real" affordance), produce a **handoff brief** — a spec they paste
-into a Pallet chat on the **Sortly Prototypes** project, where it gets rebuilt with
-real production components and real data.
+into a Pallet chat on the **Sortly Prototypes** project, where it gets rebuilt as
+a real route inside the real Sortly app shell.
+
+IMPORTANT framing: the rebuild mounts the prototype INSIDE the real app, which
+already provides the sidebar, header, nav, and theme. So the brief must clearly
+separate the **app chrome** (which the real app provides — the rebuild discards it)
+from the **screen content** (the actual new view to build). A Quick draws its own
+sidebar/header only because it has no real app to live in.
 
 Do this:
 1. Call \`read_prototype\` to get the current source.
@@ -87,26 +93,37 @@ Do this:
 ## What this is
 <1–2 sentences: the screen/flow and its purpose>
 
-## @sortly/ds components used
-<list each @sortly/ds component this prototype uses — the Sortly Prototypes side
-maps them to production via docs/sortly-quick-component-map.md>
+## App chrome — DO NOT REBUILD (the real Sortly app provides this)
+<the prototype's own sidebar, top nav, header bar, custom multi-screen navigation,
+logo — list what's here so the rebuild knows to DROP it and use the real shell.
+If the Quick is a single screen with no faux chrome, write "none".>
 
-## Layout
-<structure: header, sections, columns, key regions>
+## Screen content to build
+<the actual new view(s) that go inside the real app's content area — this is what
+gets rebuilt>
 
-## Interactions
+### @sortly/ds components used (in the content)
+<list each @sortly/ds component — the Sortly Prototypes side maps them to production
+via docs/sortly-quick-component-map.md>
+
+### Content layout
+<structure of the content area: sections, columns, regions — NOT the app shell>
+
+### Interactions
 <what's clickable, what state changes, important behaviors>
 
 ## Data needs
-<what REAL Sortly data this should show (items, folders, quantities, etc.) and
-what was mock/placeholder in the Quick>
+<what data the content shows. Note: for now the rebuild targets real look-and-feel;
+mock data in the content is fine. Still note what REAL Sortly data it would use
+(items, folders, etc.) for a later data-wiring pass.>
 
 ## Notes
 <edge cases, anything the rebuild should watch for>
 \`\`\`
 
 3. After the brief, tell the user: "Paste this into a chat on your Sortly Prototypes
-   project and ask to rebuild it — it'll use real components and data, on your branch."
+   project and ask to rebuild it — it'll mount as a real route inside the real app
+   shell, on your branch."
 
 Keep the brief tight and faithful to what's actually built — it's a spec of intent
 and layout, not a code dump.
