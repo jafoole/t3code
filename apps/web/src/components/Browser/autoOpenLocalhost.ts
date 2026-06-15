@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { useBrowserPanelStore } from "./browserPanelStore";
+import { openPreviewPopout } from "./openPreview";
 
 const LOCALHOST_URL_REGEX = /\bhttps?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0)(?::\d+)?(?:\/[^\s)\]<>'"]*)?/gi;
 
@@ -19,7 +19,7 @@ export function extractLocalhostUrls(text: string): string[] {
   return matches ?? [];
 }
 
-export function useAutoOpenLocalhostInPanel(text: string): void {
+export function useAutoOpenLocalhostPreview(text: string): void {
   useEffect(() => {
     const urls = extractLocalhostUrls(text);
     if (urls.length === 0) return;
@@ -33,8 +33,7 @@ export function useAutoOpenLocalhostInPanel(text: string): void {
     }
     if (nextUrl === null) return;
 
-    const store = useBrowserPanelStore.getState();
-    store.setUrl(nextUrl);
-    store.setOpen(true);
+    // Pallet rule: automatic opens go to the pop-out window, not the side panel.
+    openPreviewPopout(nextUrl);
   }, [text]);
 }

@@ -9,9 +9,13 @@ import { scopeThreadRef } from "@t3tools/client-runtime";
 import { memo } from "react";
 import GitActionsControl from "../GitActionsControl";
 import { type DraftId } from "~/composerDraftStore";
-import { DiffIcon, TerminalSquareIcon } from "lucide-react";
+import { ChevronDownIcon, DiffIcon, TerminalSquareIcon } from "lucide-react";
 import { BrowserPanelToggleIcon } from "../Browser/BrowserPanelToggleIcon";
 import { useBrowserPanelStore } from "../Browser/browserPanelStore";
+import { openPreviewPopout, openPreviewSidePanel } from "../Browser/openPreview";
+import { Button } from "../ui/button";
+import { Group } from "../ui/group";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { usePrototypesPanelStore } from "../Prototypes/prototypesPanelStore";
 import { LayersIcon } from "lucide-react";
 import { Badge } from "../ui/badge";
@@ -228,27 +232,43 @@ function PrototypesPanelToggle() {
 }
 
 function BrowserPanelToggle() {
-  const open = useBrowserPanelStore((s) => s.open);
-  const toggle = useBrowserPanelStore((s) => s.toggleOpen);
+  const url = useBrowserPanelStore((s) => s.url);
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Toggle
-            className="shrink-0"
-            pressed={open}
-            onPressedChange={toggle}
-            aria-label="Toggle browser panel"
-            variant="outline"
-            size="xs"
-          >
-            <BrowserPanelToggleIcon open={open} />
-          </Toggle>
-        }
-      />
-      <TooltipPopup side="bottom">
-        {open ? "Close browser panel" : "Open browser panel"}
-      </TooltipPopup>
-    </Tooltip>
+    <Group className="flex shrink-0 items-center">
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              className="rounded-r-none border-r-0"
+              variant="outline"
+              size="icon-xs"
+              aria-label="Open browser preview in pop-up window"
+              onClick={() => openPreviewPopout(url)}
+            >
+              <BrowserPanelToggleIcon open={false} />
+            </Button>
+          }
+        />
+        <TooltipPopup side="bottom">Open preview (pop-up window)</TooltipPopup>
+      </Tooltip>
+      <Menu>
+        <MenuTrigger
+          render={
+            <Button
+              className="rounded-l-none px-1"
+              variant="outline"
+              size="icon-xs"
+              aria-label="Browser preview options"
+            />
+          }
+        >
+          <ChevronDownIcon className="size-3" />
+        </MenuTrigger>
+        <MenuPopup align="end">
+          <MenuItem onClick={() => openPreviewPopout(url)}>Open in pop-up window</MenuItem>
+          <MenuItem onClick={() => openPreviewSidePanel()}>Open in side panel</MenuItem>
+        </MenuPopup>
+      </Menu>
+    </Group>
   );
 }

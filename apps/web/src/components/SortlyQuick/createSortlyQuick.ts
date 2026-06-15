@@ -3,7 +3,7 @@ import { scopeProjectRef } from "@t3tools/client-runtime";
 
 import { getPrimaryEnvironmentConnection } from "../../environments/runtime";
 import { newCommandId, newProjectId } from "../../lib/utils";
-import { useBrowserPanelStore } from "../Browser/browserPanelStore";
+import { openPreviewPopout } from "../Browser/openPreview";
 
 export const QUICKS_PATH_SEGMENT = "/Sortly Quicks/";
 
@@ -17,14 +17,11 @@ export function defaultQuickName(now = new Date()): string {
   return `Quick — ${date} ${time}`;
 }
 
-// Opens the in-app browser on the Quick's edit URL. Deferred a tick so it
-// lands after ChatView's scope-change effect resets the panel on navigation.
+// Opens the Quick's edit URL in the pop-out browser window. Deferred a tick so
+// it lands after ChatView's scope-change effect runs on navigation.
 export function openQuickCanvas(editUrl: string): void {
   setTimeout(() => {
-    const store = useBrowserPanelStore.getState();
-    store.setUrl(editUrl);
-    store.setOpen(true);
-    void window.desktopBridge?.browserNavigate?.(editUrl);
+    openPreviewPopout(editUrl);
   }, 50);
 }
 

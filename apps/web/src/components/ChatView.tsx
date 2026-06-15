@@ -151,6 +151,7 @@ import { MessagesTimeline } from "./chat/MessagesTimeline";
 import { ChatHeader } from "./chat/ChatHeader";
 import { useBrowserPanelStore } from "./Browser/browserPanelStore";
 import { isSortlyQuickWorkspace } from "./SortlyQuick/createSortlyQuick";
+import { openPreviewPopout } from "./Browser/openPreview";
 import { type ExpandedImagePreview } from "./chat/ExpandedImagePreview";
 import { NoActiveThreadState } from "./NoActiveThreadState";
 import { resolveEffectiveEnvMode, resolveEnvironmentOptionLabel } from "./BranchToolbar.logic";
@@ -1084,16 +1085,14 @@ export default function ChatView(props: ChatViewProps) {
   }, [activeProjectScopeKey]);
 
   // Sortly Quick projects: auto-open the canvas on the prototype's edit URL.
-  // Runs after the scope effect above so its reset doesn't clobber the URL.
+  // Opens the pop-out window (not the side panel) per the Pallet preview rule.
   const activeQuickRoot = activeProject?.cwd ?? null;
   useEffect(() => {
     if (!activeQuickRoot || !isSortlyQuickWorkspace(activeQuickRoot)) return;
     let cancelled = false;
     void window.desktopBridge?.sortlyQuickInfo?.(activeQuickRoot).then((info) => {
       if (cancelled || !info) return;
-      const store = useBrowserPanelStore.getState();
-      store.setUrl(info.editUrl);
-      store.setOpen(true);
+      openPreviewPopout(info.editUrl);
     });
     return () => {
       cancelled = true;

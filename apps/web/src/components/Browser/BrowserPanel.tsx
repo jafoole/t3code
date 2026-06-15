@@ -322,6 +322,22 @@ export function BrowserPanel() {
           spellCheck={false}
           className="ml-2 min-w-0 flex-1 rounded bg-muted/50 px-2 py-1 text-xs outline-none focus:bg-background focus:ring-1 focus:ring-ring"
         />
+        <button
+          type="button"
+          onClick={() => useBrowserPanelStore.getState().setOpen(false)}
+          title="Close browser panel"
+          aria-label="Close browser panel"
+          className="ml-1 rounded p-1.5 text-muted-foreground hover:bg-accent"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M4 4L12 12M12 4L4 12"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
       </div>
       <div ref={placeholderRef} className="flex-1" aria-label="Embedded browser view" />
     </div>
