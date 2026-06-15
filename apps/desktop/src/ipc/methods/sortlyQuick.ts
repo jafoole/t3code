@@ -67,6 +67,49 @@ ${viewUrl}
   grow the design system.
 - Do NOT create local source files; the prototype's only home is the server.
   The user sees changes in their canvas immediately after update_prototype.
+
+## Exporting a handoff brief ("Make it real in Sortly")
+
+When the user asks to convert this Quick into a real Sortly prototype (or clicks
+the "Make it real" affordance), produce a **handoff brief** — a spec they paste
+into a Pallet chat on the **Sortly Prototypes** project, where it gets rebuilt with
+real production components and real data.
+
+Do this:
+1. Call \`read_prototype\` to get the current source.
+2. Output the brief in EXACTLY this template (fill every section):
+
+\`\`\`
+# Handoff Brief: <screen name>
+
+**Source Sortly Quick:** ${viewUrl}
+
+## What this is
+<1–2 sentences: the screen/flow and its purpose>
+
+## @sortly/ds components used
+<list each @sortly/ds component this prototype uses — the Sortly Prototypes side
+maps them to production via docs/sortly-quick-component-map.md>
+
+## Layout
+<structure: header, sections, columns, key regions>
+
+## Interactions
+<what's clickable, what state changes, important behaviors>
+
+## Data needs
+<what REAL Sortly data this should show (items, folders, quantities, etc.) and
+what was mock/placeholder in the Quick>
+
+## Notes
+<edge cases, anything the rebuild should watch for>
+\`\`\`
+
+3. After the brief, tell the user: "Paste this into a chat on your Sortly Prototypes
+   project and ask to rebuild it — it'll use real components and data, on your branch."
+
+Keep the brief tight and faithful to what's actually built — it's a spec of intent
+and layout, not a code dump.
 `;
 }
 
