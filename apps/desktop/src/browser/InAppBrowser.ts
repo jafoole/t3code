@@ -72,9 +72,69 @@ function snapshotNavigationState(view: Electron.WebContentsView): BrowserNavigat
   };
 }
 
+// The pop-out window is a real browser window: a thin toolbar view (back /
+// forward / reload + editable URL) stacked above a content view that hosts the
+// page. The toolbar is trusted local HTML driven via the popoutToolbar preload.
+const POPOUT_TOOLBAR_HEIGHT = 44;
+
+interface PopoutState {
+  readonly window: Electron.BrowserWindow;
+  readonly toolbar: Electron.WebContentsView;
+  readonly content: Electron.WebContentsView;
+}
+
+function layoutPopout(p: PopoutState): void {
+  if (p.window.isDestroyed()) return;
+  const { width, height } = p.window.getContentBounds();
+  p.toolbar.setBounds({ x: 0, y: 0, width, height: POPOUT_TOOLBAR_HEIGHT });
+  p.content.setBounds({
+    x: 0,
+    y: POPOUT_TOOLBAR_HEIGHT,
+    width,
+    height: Math.max(0, height - POPOUT_TOOLBAR_HEIGHT),
+  });
+}
+
+function buildPopoutToolbarHtml(dark: boolean): string {
+  const bg = dark ? "#1a1a1a" : "#f7f7f8";
+  const fg = dark ? "#e5e5e5" : "#1c1c1e";
+  const hover = dark ? "#2e2e31" : "#e4e4e7";
+  const inputBg = dark ? "#2a2a2d" : "#ffffff";
+  const focusRing = dark ? "#3b6fd4" : "#bcd0f7";
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+:root{color-scheme:${dark ? "dark" : "light"};}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{height:100vh;display:flex;align-items:center;gap:4px;padding:0 10px;
+font:13px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:${bg};color:${fg};-webkit-user-select:none;}
+button{width:30px;height:30px;border:none;border-radius:6px;background:transparent;color:inherit;cursor:pointer;
+font-size:17px;line-height:1;display:flex;align-items:center;justify-content:center;}
+button:hover:not(:disabled){background:${hover};}
+button:disabled{opacity:.3;cursor:default;}
+input{flex:1;height:30px;border:none;border-radius:6px;padding:0 12px;font:13px inherit;background:${inputBg};color:inherit;outline:none;}
+input:focus{box-shadow:0 0 0 2px ${focusRing};}
+</style></head><body>
+<button id="back" title="Back" disabled>&#8249;</button>
+<button id="fwd" title="Forward" disabled>&#8250;</button>
+<button id="reload" title="Reload">&#10227;</button>
+<input id="url" type="text" spellcheck="false" placeholder="URL" />
+<script>
+var api=window.popoutToolbar;
+var back=document.getElementById('back'),fwd=document.getElementById('fwd'),reload=document.getElementById('reload'),url=document.getElementById('url');
+var editing=false;
+function normalize(v){v=v.trim();if(!v)return '';if(v.indexOf('://')!==-1)return v;var l=v.toLowerCase();if(l.indexOf('localhost')===0||l.indexOf('127.')===0||l.indexOf('0.0.0.0')===0)return 'http://'+v;return 'https://'+v;}
+back.onclick=function(){api.back();};
+fwd.onclick=function(){api.forward();};
+reload.onclick=function(){api.reload();};
+url.addEventListener('focus',function(){editing=true;});
+url.addEventListener('blur',function(){editing=false;});
+url.addEventListener('keydown',function(e){if(e.key==='Enter'){var v=normalize(url.value);if(v){api.navigate(v);}url.blur();}});
+api.onState(function(s){back.disabled=!s.canGoBack;fwd.disabled=!s.canGoForward;if(!editing){url.value=s.url||'';}});
+</script></body></html>`;
+}
+
 const make = Effect.gen(function* () {
   const stateRef = yield* Ref.make<Option.Option<BrowserState>>(Option.none());
-  const popoutRef = yield* Ref.make<Option.Option<Electron.BrowserWindow>>(Option.none());
+  const popoutRef = yield* Ref.make<Option.Option<PopoutState>>(Option.none());
   const electronWindow = yield* ElectronWindow.ElectronWindow;
   const electronTheme = yield* ElectronTheme.ElectronTheme;
 
@@ -162,6 +222,41 @@ const make = Effect.gen(function* () {
   Electron.ipcMain.removeAllListeners(IpcChannels.BROWSER_SET_BOUNDS_CHANNEL);
   Electron.ipcMain.on(IpcChannels.BROWSER_SET_BOUNDS_CHANNEL, boundsListener);
 
+  const broadcastPopoutState = (p: PopoutState) => {
+    if (p.window.isDestroyed()) return;
+    try {
+      p.toolbar.webContents.send(IpcChannels.POPOUT_STATE_CHANNEL, snapshotNavigationState(p.content));
+    } catch (cause) {
+      void Effect.runPromise(logWarning("broadcastPopoutState failed", { cause: String(cause) }));
+    }
+  };
+
+  // Toolbar (renderer) → main: drive the pop-out's content view.
+  const popoutNavListener = (_event: Electron.IpcMainEvent, raw: unknown) => {
+    void Effect.runPromise(
+      Ref.get(popoutRef).pipe(
+        Effect.flatMap((current) =>
+          Effect.sync(() => {
+            if (Option.isNone(current) || current.value.window.isDestroyed()) return;
+            const wc = current.value.content.webContents;
+            const action = raw as { type?: string; url?: string };
+            if (action?.type === "back" && wc.navigationHistory.canGoBack()) {
+              wc.navigationHistory.goBack();
+            } else if (action?.type === "forward" && wc.navigationHistory.canGoForward()) {
+              wc.navigationHistory.goForward();
+            } else if (action?.type === "reload") {
+              wc.reload();
+            } else if (action?.type === "navigate" && typeof action.url === "string") {
+              void wc.loadURL(action.url).catch(() => undefined);
+            }
+          }),
+        ),
+      ),
+    );
+  };
+  Electron.ipcMain.removeAllListeners(IpcChannels.POPOUT_NAV_CHANNEL);
+  Electron.ipcMain.on(IpcChannels.POPOUT_NAV_CHANNEL, popoutNavListener);
+
   // Re-color the embedded view when the app theme changes so the panel
   // doesn't flash white against a dark window.
   yield* electronTheme.onUpdated(() => {
@@ -179,9 +274,9 @@ const make = Effect.gen(function* () {
   const navigatePopout = (url: string) =>
     Effect.gen(function* () {
       const current = yield* Ref.get(popoutRef);
-      if (Option.isNone(current) || current.value.isDestroyed()) return;
+      if (Option.isNone(current) || current.value.window.isDestroyed()) return;
       yield* Effect.tryPromise({
-        try: () => current.value.loadURL(url),
+        try: () => current.value.content.webContents.loadURL(url),
         catch: (cause) => String(cause),
       }).pipe(
         Effect.catch((cause) => logWarning("popout loadURL failed", { url, cause: String(cause) })),
@@ -270,16 +365,16 @@ const make = Effect.gen(function* () {
     openPopout: (url) =>
       Effect.gen(function* () {
         const existing = yield* Ref.get(popoutRef);
-        if (Option.isSome(existing) && !existing.value.isDestroyed()) {
+        if (Option.isSome(existing) && !existing.value.window.isDestroyed()) {
           yield* Effect.tryPromise({
-            try: () => existing.value.loadURL(url),
+            try: () => existing.value.content.webContents.loadURL(url),
             catch: (cause) => String(cause),
           }).pipe(
             Effect.catch((cause) =>
               logWarning("popout loadURL failed", { url, cause: String(cause) }),
             ),
           );
-          existing.value.focus();
+          existing.value.window.focus();
           return;
         }
 
@@ -296,13 +391,56 @@ const make = Effect.gen(function* () {
           },
         });
 
+        const toolbar = new Electron.WebContentsView({
+          webPreferences: {
+            preload: `${__dirname}/popoutToolbar.preload.cjs`,
+            sandbox: true,
+            contextIsolation: true,
+            nodeIntegration: false,
+          },
+        });
+        const content = new Electron.WebContentsView({
+          webPreferences: {
+            sandbox: true,
+            contextIsolation: true,
+            nodeIntegration: false,
+            webSecurity: true,
+          },
+        });
+        content.setBackgroundColor(themedBackgroundColor(dark));
+        win.contentView.addChildView(toolbar);
+        win.contentView.addChildView(content);
+
+        const state: PopoutState = { window: win, toolbar, content };
+        layoutPopout(state);
+
+        const emit = () => broadcastPopoutState(state);
+        content.webContents.on("did-navigate", emit);
+        content.webContents.on("did-navigate-in-page", emit);
+        content.webContents.on("page-title-updated", emit);
+        content.webContents.on("did-start-loading", emit);
+        content.webContents.on("did-stop-loading", emit);
+        content.webContents.on("did-finish-load", emit);
+
+        win.on("resize", () => layoutPopout(state));
         win.once("closed", () => {
           void Ref.set(popoutRef, Option.none()).pipe(Effect.runPromise);
         });
 
-        yield* Ref.set(popoutRef, Option.some(win));
+        yield* Ref.set(popoutRef, Option.some(state));
+
+        const toolbarHtml = buildPopoutToolbarHtml(dark);
         yield* Effect.tryPromise({
-          try: () => win.loadURL(url),
+          try: () =>
+            toolbar.webContents.loadURL(
+              "data:text/html;charset=utf-8," + encodeURIComponent(toolbarHtml),
+            ),
+          catch: (cause) => String(cause),
+        }).pipe(
+          Effect.catch((cause) => logWarning("popout toolbar load failed", { cause: String(cause) })),
+        );
+        yield* Effect.tryPromise({
+          try: () => content.webContents.loadURL(url),
           catch: (cause) => String(cause),
         }).pipe(
           Effect.catch((cause) =>

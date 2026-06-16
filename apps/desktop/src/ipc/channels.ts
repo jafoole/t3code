@@ -50,6 +50,9 @@ export const BROWSER_RELOAD_CHANNEL = "desktop:browser-reload";
 export const BROWSER_STATE_CHANNEL = "desktop:browser-state";
 export const BROWSER_EXTERNAL_LINK_CHANNEL = "desktop:browser-external-link";
 export const BROWSER_OPEN_POPOUT_CHANNEL = "desktop:browser-open-popout";
+// Pop-out window chrome: toolbar renderer <-> main process.
+export const POPOUT_NAV_CHANNEL = "desktop:popout-nav";
+export const POPOUT_STATE_CHANNEL = "desktop:popout-state";
 
 export const GITHUB_AUTH_START_DEVICE_FLOW_CHANNEL = "desktop:github-auth-start-device-flow";
 export const GITHUB_AUTH_POLL_FOR_TOKEN_CHANNEL = "desktop:github-auth-poll-for-token";

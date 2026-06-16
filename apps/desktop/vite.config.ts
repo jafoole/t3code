@@ -54,7 +54,7 @@ export default defineConfig({
       sourcemap: true,
       outExtensions: () => ({ js: ".cjs" }),
       define: publicConfigDefine,
-      entry: ["src/preload.ts"],
+      entry: ["src/preload.ts", "src/popoutToolbar.preload.ts"],
     },
   ],
 });
