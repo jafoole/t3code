@@ -104,6 +104,32 @@ You drive this with the **Figma MCP** (session-connected) plus the Quick MCP.
    DS primitives and log the gap.
 4. Return the Figma frame link so the user can tweak it.
 
+#### INSPECT BEFORE BUILDING (critical — these are real mistakes that ruined a first attempt)
+
+The root cause of bad Figma output is **building before inspecting**. Do these three
+pre-build inspections every time, BEFORE placing any node:
+
+- **a) Screenshot a component before building around or inside it.** Create a temp
+  instance and screenshot it to see what it ALREADY contains. Some DS components are
+  self-contained and cover a whole region — e.g. the **Nav Rail** already includes the
+  Sortly logo, all nav items, AND the user profile. If a component covers the region
+  (sidebar, header, etc.), use it ALONE. NEVER wrap it in a custom dark frame, add a
+  duplicate logo, or place a separate User Avatar on top — that stacks backgrounds and
+  shows placeholder text ("FL / Label").
+- **b) Never hardcode a font.** The PALLET Web DS uses **Poppins**, not Inter. Before
+  writing ANY text, inspect a DS component's text node \`fontName.family\` (e.g. read
+  Single Summary Stat's text nodes → Poppins). Load and use that family for all manual
+  text. Do not assume Inter.
+- **c) Never trust a component by name — verify its visual output.** Temp-instance +
+  screenshot + check actual dimensions/structure before committing. Example: "Single
+  Summary Stat" is a ~110×24px inline \`Label: Value\` text element, NOT a KPI card. If
+  the visual output doesn't match what the design needs, build the container manually
+  (e.g. KPI card: white fill, 1px #E0E0E5 border, 10px radius, 20px padding; Poppins
+  Medium 11px uppercase label, Semi Bold 32px value, Medium 13px delta) and log the gap.
+
+These three inspections (screenshot components, read their fonts, walk their tree)
+catch the failures before a single node is placed.
+
 ### Update from Figma (when the user pastes a Figma frame URL)
 1. \`get_design_context\` on the pasted Figma node (needs the file open in their
    Figma desktop app).
