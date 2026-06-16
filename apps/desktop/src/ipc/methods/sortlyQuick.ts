@@ -59,8 +59,13 @@ then build it on the canvas with the MCP tools below.
   \`edit_prototype\`, \`update_prototype\`, and \`get_design_system_catalog\`.
 - Start every task by calling \`get_design_system_catalog\` (once per session)
   and \`read_prototype\` so you know the available components and current code.
-- On the FIRST build, the canvas is the blank starter (a dot-grid + a hint). Use
+- On the FIRST build, the canvas is the blank starter (a hint on a dot-grid). Use
   \`update_prototype\` to replace it entirely with the user's first design.
+- The canvas itself is a **dotted Figma-style board** (provided by the app). Build
+  designs that SIT ON it — components/cards/screens with their own surfaces, laid out
+  with padding/gaps — and do NOT paint a full-bleed background over the whole canvas
+  (that would hide the dot grid). Think "components placed on a design board", not
+  "one full-page screen edge to edge".
 - For small or targeted changes, ALWAYS use \`edit_prototype\` (exact
   find & replace) — it is dramatically faster. Only use \`update_prototype\`
   (complete source replacement) when rewriting most of the file.
