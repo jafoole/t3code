@@ -54,7 +54,18 @@ export default defineConfig({
       sourcemap: true,
       outExtensions: () => ({ js: ".cjs" }),
       define: publicConfigDefine,
-      entry: ["src/preload.ts", "src/popoutToolbar.preload.ts"],
+      entry: ["src/preload.ts"],
+    },
+    // Separate build group so each preload bundles self-contained. Sandboxed
+    // Electron preloads can't `require` a shared sibling chunk, so the two
+    // preloads must NOT share an entry (which would split out a common chunk).
+    {
+      format: "cjs",
+      outDir: "dist-electron",
+      sourcemap: true,
+      outExtensions: () => ({ js: ".cjs" }),
+      define: publicConfigDefine,
+      entry: ["src/popoutToolbar.preload.ts"],
     },
   ],
 });
