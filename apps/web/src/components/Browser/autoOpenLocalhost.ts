@@ -16,7 +16,21 @@ export function resetAutoOpenLocalhostSeen(): void {
 export function extractLocalhostUrls(text: string): string[] {
   if (!text) return [];
   const matches = text.match(LOCALHOST_URL_REGEX);
-  return matches ?? [];
+  if (!matches) return [];
+  return matches.filter((raw) => {
+    // Skip glob / wildcard patterns. Config-ish text (CORS allowlists, proxy
+    // entries, CSP) often contains things like `http://localhost:8080/**` —
+    // those are patterns, not pages, and auto-opening them just yields a blank
+    // window. A real navigable URL never contains a literal `*`.
+    if (raw.includes("*")) return false;
+    // Only auto-open things that actually parse as a URL.
+    try {
+      new URL(raw);
+      return true;
+    } catch {
+      return false;
+    }
+  });
 }
 
 export function useAutoOpenLocalhostPreview(text: string): void {
