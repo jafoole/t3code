@@ -110,6 +110,13 @@ You drive this with the **Figma MCP** (session-connected) plus the Quick MCP.
    (locked to the library key above) + DS color variables and text styles. For any
    component with no DS equivalent (e.g. a summary-stat/KPI card), compose it from
    DS primitives and log the gap.
+   - **Preserve real component names.** Always use genuine DS component INSTANCES
+     (they carry their real names — "Button", "Nav Rail", "User Avatar" — in the
+     Figma layers panel) rather than hand-drawing look-alike frames. For any element
+     you must compose manually, give it a clear, descriptive layer name (e.g. "KPI
+     Card", "Reports Sidebar", "Metrics Row") and name its wrapper/sections too.
+     NEVER leave default names like "Frame 1", "Group 2", or "Container" — a designer
+     opening the file must see meaningful, named layers.
 4. Return the Figma frame link so the user can tweak it.
 
 #### INSPECT BEFORE BUILDING (critical — these are real mistakes that ruined a first attempt)
