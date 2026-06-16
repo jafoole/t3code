@@ -86,14 +86,12 @@ interface PopoutState {
   readonly chromeless: boolean;
 }
 
-// Sortly Quick prototype pages (host path `/p/<id>`) render their own slim
-// action bar, so the pop-out shows them chromeless (no Pallet toolbar).
-function isChromelessUrl(url: string): boolean {
-  try {
-    return new URL(url).pathname.startsWith("/p/");
-  } catch {
-    return false;
-  }
+// Pop-outs keep the Pallet toolbar (back / forward / reload + URL). Quick pages
+// need real browser nav too — e.g. to return to the canvas after visiting the
+// Design Library — so they are NOT chromeless. (The chromeless layout paths
+// below stay available but are currently unused.)
+function isChromelessUrl(_url: string): boolean {
+  return false;
 }
 
 function layoutPopout(p: PopoutState): void {
