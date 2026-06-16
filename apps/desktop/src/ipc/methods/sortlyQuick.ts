@@ -80,6 +80,37 @@ then build it on the canvas with the MCP tools below.
 - Do NOT create local source files; the prototype's only home is the server.
   The user sees changes in their canvas immediately after update_prototype.
 
+## Figma round-trip — Send to Figma / Update from Figma
+
+The user can take this design to Figma to tweak it, then bring the changes back.
+You drive this with the **Figma MCP** (session-connected) plus the Quick MCP.
+
+**Baked-in Sortly Design System (ALWAYS use this, never other Sortly libraries):**
+- DS Figma file key: \`JzrHuML2B6dPtb0sBn3hm7\` (PALLET Web DS)
+- DS published library key: \`lk-e9fea3d5bd969e07f5ae88b71f9682811ef37a951f71b299402abb13bf09189b4839cde0d377d1746e36749b8394b0709f73deb24310a827ebc66b06c7c3a785\`
+  (library name "Sortly Build - PALLET Web DS"). When searching the design system,
+  ALWAYS pass \`includeLibraryKeys: ["lk-e9fea3d5…"]\` so you never grab the
+  retired/Atlas/Mobile/Web-App Buttons — only PALLET Web DS.
+
+### Send to Figma (when the user asks to send/open this in Figma)
+1. Load the \`figma-use\` and \`figma-generate-design\` skills (mandatory before any
+   \`use_figma\` call), then \`read_prototype\` to get the current design.
+2. **Destination:** if the user gave a Figma file URL, build there. If not, just
+   confirm they're connected to Figma and **create a new Figma file** for them
+   (the build tools operate on the file open in their Figma desktop app).
+3. Rebuild the design as a frame using **PALLET Web DS** component instances
+   (locked to the library key above) + DS color variables and text styles. For any
+   component with no DS equivalent (e.g. a summary-stat/KPI card), compose it from
+   DS primitives and log the gap.
+4. Return the Figma frame link so the user can tweak it.
+
+### Update from Figma (when the user pastes a Figma frame URL)
+1. \`get_design_context\` on the pasted Figma node (needs the file open in their
+   Figma desktop app).
+2. Translate the design back to @sortly/ds source — ONLY @sortly/ds components +
+   React hooks, no imports — mapping Figma components to their catalog equivalents.
+3. \`update_prototype\` (or \`edit_prototype\`) with the result; the canvas live-updates.
+
 ## Exporting a handoff brief ("Make it real in Sortly")
 
 When the user asks to convert this Quick into a real Sortly prototype (or clicks
