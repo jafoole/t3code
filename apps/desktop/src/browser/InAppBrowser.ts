@@ -79,13 +79,30 @@ const POPOUT_TOOLBAR_HEIGHT = 44;
 
 interface PopoutState {
   readonly window: Electron.BrowserWindow;
-  readonly toolbar: Electron.WebContentsView;
+  // null when the popout is chromeless (e.g. Sortly Quick, which renders its
+  // own single action bar — a Pallet toolbar on top would be a redundant 2nd bar).
+  readonly toolbar: Electron.WebContentsView | null;
   readonly content: Electron.WebContentsView;
+  readonly chromeless: boolean;
+}
+
+// Sortly Quick prototype pages (host path `/p/<id>`) render their own slim
+// action bar, so the pop-out shows them chromeless (no Pallet toolbar).
+function isChromelessUrl(url: string): boolean {
+  try {
+    return new URL(url).pathname.startsWith("/p/");
+  } catch {
+    return false;
+  }
 }
 
 function layoutPopout(p: PopoutState): void {
   if (p.window.isDestroyed()) return;
   const { width, height } = p.window.getContentBounds();
+  if (!p.toolbar) {
+    p.content.setBounds({ x: 0, y: 0, width, height });
+    return;
+  }
   p.toolbar.setBounds({ x: 0, y: 0, width, height: POPOUT_TOOLBAR_HEIGHT });
   p.content.setBounds({
     x: 0,
@@ -223,7 +240,7 @@ const make = Effect.gen(function* () {
   Electron.ipcMain.on(IpcChannels.BROWSER_SET_BOUNDS_CHANNEL, boundsListener);
 
   const broadcastPopoutState = (p: PopoutState) => {
-    if (p.window.isDestroyed()) return;
+    if (p.window.isDestroyed() || !p.toolbar) return;
     try {
       p.toolbar.webContents.send(IpcChannels.POPOUT_STATE_CHANNEL, snapshotNavigationState(p.content));
     } catch (cause) {
@@ -364,18 +381,24 @@ const make = Effect.gen(function* () {
 
     openPopout: (url) =>
       Effect.gen(function* () {
+        const chromeless = isChromelessUrl(url);
         const existing = yield* Ref.get(popoutRef);
         if (Option.isSome(existing) && !existing.value.window.isDestroyed()) {
-          yield* Effect.tryPromise({
-            try: () => existing.value.content.webContents.loadURL(url),
-            catch: (cause) => String(cause),
-          }).pipe(
-            Effect.catch((cause) =>
-              logWarning("popout loadURL failed", { url, cause: String(cause) }),
-            ),
-          );
-          existing.value.window.focus();
-          return;
+          if (existing.value.chromeless === chromeless) {
+            yield* Effect.tryPromise({
+              try: () => existing.value.content.webContents.loadURL(url),
+              catch: (cause) => String(cause),
+            }).pipe(
+              Effect.catch((cause) =>
+                logWarning("popout loadURL failed", { url, cause: String(cause) }),
+              ),
+            );
+            existing.value.window.focus();
+            return;
+          }
+          // Chrome shape changed (e.g. Quick ↔ localhost preview) — rebuild fresh.
+          existing.value.window.destroy();
+          yield* Ref.set(popoutRef, Option.none());
         }
 
         const dark = yield* electronTheme.shouldUseDarkColors;
@@ -391,14 +414,6 @@ const make = Effect.gen(function* () {
           },
         });
 
-        const toolbar = new Electron.WebContentsView({
-          webPreferences: {
-            preload: `${__dirname}/popoutToolbar.preload.cjs`,
-            sandbox: true,
-            contextIsolation: true,
-            nodeIntegration: false,
-          },
-        });
         const content = new Electron.WebContentsView({
           webPreferences: {
             sandbox: true,
@@ -408,10 +423,22 @@ const make = Effect.gen(function* () {
           },
         });
         content.setBackgroundColor(themedBackgroundColor(dark));
-        win.contentView.addChildView(toolbar);
+
+        const toolbar = chromeless
+          ? null
+          : new Electron.WebContentsView({
+              webPreferences: {
+                preload: `${__dirname}/popoutToolbar.preload.cjs`,
+                sandbox: true,
+                contextIsolation: true,
+                nodeIntegration: false,
+              },
+            });
+
+        if (toolbar) win.contentView.addChildView(toolbar);
         win.contentView.addChildView(content);
 
-        const state: PopoutState = { window: win, toolbar, content };
+        const state: PopoutState = { window: win, toolbar, content, chromeless };
         layoutPopout(state);
 
         const emit = () => broadcastPopoutState(state);
@@ -429,16 +456,18 @@ const make = Effect.gen(function* () {
 
         yield* Ref.set(popoutRef, Option.some(state));
 
-        const toolbarHtml = buildPopoutToolbarHtml(dark);
-        yield* Effect.tryPromise({
-          try: () =>
-            toolbar.webContents.loadURL(
-              "data:text/html;charset=utf-8," + encodeURIComponent(toolbarHtml),
-            ),
-          catch: (cause) => String(cause),
-        }).pipe(
-          Effect.catch((cause) => logWarning("popout toolbar load failed", { cause: String(cause) })),
-        );
+        if (toolbar) {
+          const toolbarHtml = buildPopoutToolbarHtml(dark);
+          yield* Effect.tryPromise({
+            try: () =>
+              toolbar.webContents.loadURL(
+                "data:text/html;charset=utf-8," + encodeURIComponent(toolbarHtml),
+              ),
+            catch: (cause) => String(cause),
+          }).pipe(
+            Effect.catch((cause) => logWarning("popout toolbar load failed", { cause: String(cause) })),
+          );
+        }
         yield* Effect.tryPromise({
           try: () => content.webContents.loadURL(url),
           catch: (cause) => String(cause),
