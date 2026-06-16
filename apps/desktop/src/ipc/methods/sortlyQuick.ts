@@ -48,12 +48,19 @@ function buildWorkspaceClaudeMd(name: string, viewUrl: string): string {
 This workspace controls one Sortly Quick prototype. It is rendered live at:
 ${viewUrl}
 
+A new Quick starts as a **blank dot-grid canvas** — an empty design surface. The
+user builds it up by describing what they want in this chat ("build an item card
+with X"). If the user hasn't said what to build yet, ask them in one short line,
+then build it on the canvas with the MCP tools below.
+
 ## How to work here
 
 - You have MCP tools from the \`sortly-quick\` server: \`read_prototype\`,
   \`edit_prototype\`, \`update_prototype\`, and \`get_design_system_catalog\`.
 - Start every task by calling \`get_design_system_catalog\` (once per session)
   and \`read_prototype\` so you know the available components and current code.
+- On the FIRST build, the canvas is the blank starter (a dot-grid + a hint). Use
+  \`update_prototype\` to replace it entirely with the user's first design.
 - For small or targeted changes, ALWAYS use \`edit_prototype\` (exact
   find & replace) — it is dramatically faster. Only use \`update_prototype\`
   (complete source replacement) when rewriting most of the file.
