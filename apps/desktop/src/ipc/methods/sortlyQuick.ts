@@ -73,6 +73,14 @@ then build it on the canvas with the MCP tools below.
   catalog plus React hooks (useState, useEffect, useRef, useMemo, useCallback)
   as bare identifiers. No imports. No external libraries. No Tailwind classes
   outside the catalog's tokens.
+- **Component props are defined by the RUNTIME @sortly/ds package, NOT the Figma
+  DS.** They differ. Do not assume props or copy them from the Figma DS spec —
+  those break in the runtime. Known runtime facts: **Button** takes \`children\`
+  for its text (NOT \`label\`), uses \`variant\` (NOT \`type\`), and **lowercase**
+  sizes (\`size="medium"\`, not \`"Medium"\`). When unsure of a component's props,
+  verify by rendering: call \`update_prototype\` with a minimal use, then look at
+  the canvas — if a component renders blank or wrong, its props are wrong. Fix by
+  testing in the runtime, never by trusting the Figma DS prop names.
 - If a component you need is missing from the catalog, build the closest
   approximation from allowed primitives and add a line to GAPS.md in this
   workspace describing what was missing — the design team uses that file to
@@ -135,6 +143,9 @@ catch the failures before a single node is placed.
    Figma desktop app).
 2. Translate the design back to @sortly/ds source — ONLY @sortly/ds components +
    React hooks, no imports — mapping Figma components to their catalog equivalents.
+   **Use the image/icon asset URLs from the Figma design context directly** (e.g.
+   nav icons). Do NOT omit assets over the ~7-day URL expiry — that's fine for a
+   prototype; don't over-flag it.
 3. \`update_prototype\` (or \`edit_prototype\`) with the result; the canvas live-updates.
 
 ## Exporting a handoff brief ("Make it real in Sortly")
