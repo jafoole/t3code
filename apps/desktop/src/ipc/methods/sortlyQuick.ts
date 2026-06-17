@@ -176,10 +176,25 @@ catch the failures before a single node is placed.
    Figma desktop app).
 2. Translate the design back to @sortly/ds source — ONLY @sortly/ds components +
    React hooks, no imports — mapping Figma components to their catalog equivalents.
-   **Use the image/icon asset URLs from the Figma design context directly** (e.g.
-   nav icons). Do NOT omit assets over the ~7-day URL expiry — that's fine for a
-   prototype; don't over-flag it.
-3. \`update_prototype\` (or \`edit_prototype\`) with the result; the canvas live-updates.
+   For genuine raster images (photos, logos), use the asset URLs from the design
+   context directly — don't omit them over the ~7-day URL expiry; that's fine for a
+   prototype.
+3. **Rasterized vectors → re-export as REAL SVG (never ship the bitmap or hue-rotate).**
+   \`get_design_context\` rasterizes complex vectors (sparklines, charts, trend arrows,
+   line icons, dividers, custom shapes) into a hosted bitmap: a semantically-named node
+   (\`data-name\` is NOT "Vector"/"Group") whose only child is
+   \`<img src="https://www.figma.com/api/mcp/asset/...">\`. A bitmap CANNOT be recolored to
+   a DS token — do NOT fake a color change with a CSS \`hue-rotate\`/filter (it can't hit a
+   real hex and won't survive back to Figma). Instead, for each such SINGLE-COLOR vector:
+   - export the real SVG via the Figma MCP \`use_figma\` tool:
+     \`const n = await figma.getNodeByIdAsync("<nodeId>"); return await n.exportAsync({ format: "SVG_STRING" });\`
+   - inline the returned \`<svg>…<path/></svg>\` into the prototype (replace the \`<img>\`), and
+     set its \`stroke\`/\`fill\` to the real DS color token (e.g. \`stroke="#E7C000"\` or
+     \`className="stroke-yellow-500"\`) — a real token, never a filter.
+   For MULTI-COLOR or gradient assets (illustrations) that can't map to one token, keep the
+   asset as-is and TELL the user "this is a multi-color asset — recolor it in Figma," rather
+   than approximating.
+4. \`update_prototype\` (or \`edit_prototype\`) with the result; the canvas live-updates.
 
 ## Exporting a handoff brief ("Make it real in Sortly")
 
