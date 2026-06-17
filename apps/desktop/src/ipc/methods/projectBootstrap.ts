@@ -14,15 +14,11 @@ import { makeIpcMethod } from "../DesktopIpc.ts";
 
 const BOOTSTRAP_REPOS = {
   prototypes: { slug: "jafoole/sortly-prototypes", dirName: "Sortly Prototypes" },
-  sortlyBuild: { slug: "jagratsortly/SortlyBuild", dirName: "Sortly Build" },
 } as const;
 
 type BootstrapRepoKey = keyof typeof BOOTSTRAP_REPOS;
 
-const BootstrapRepoSchema = Schema.Union([
-  Schema.Literal("prototypes"),
-  Schema.Literal("sortlyBuild"),
-]);
+const BootstrapRepoSchema = Schema.Literal("prototypes");
 
 const BootstrapResultSchema = Schema.Union([
   Schema.Struct({ path: Schema.String }),

@@ -113,17 +113,6 @@ async function ensureSortlyProject(destPath: string, title = "Sortly Prototypes"
   });
 }
 
-async function bootstrapSortlyBuildProject(
-  bridge: NonNullable<typeof window.desktopBridge>,
-): Promise<void> {
-  // Clone the DS repo to disk (used for design-system / Code Connect edits), but
-  // do NOT register it as a visible Pallet project. "Sortly Build" as a project
-  // is legacy — superseded by Sortly Quick — and re-registering it on every
-  // launch made it impossible to delete (it kept reappearing). The folder stays
-  // on disk; it just no longer shows in the sidebar.
-  await bridge.githubBootstrapProject("sortlyBuild");
-}
-
 async function runPoll(deviceCode: string, currentInterval: number): Promise<void> {
   if (pollAborted) return;
 
@@ -149,7 +138,6 @@ async function runPoll(deviceCode: string, currentInterval: number): Promise<voi
       }
 
       await ensureSortlyProject(bootstrapResult.path).catch(() => undefined);
-      await bootstrapSortlyBuildProject(bridge).catch(() => undefined);
       useGithubAuthStore.setState({ status: "signed-in", user: result.user });
       return;
     }
@@ -226,7 +214,6 @@ export const useGithubAuthStore = create<GithubAuthState>()((set) => ({
             if ("error" in result) return;
             void ensureSortlyProject(result.path).catch(() => undefined);
           })
-          .then(() => bootstrapSortlyBuildProject(bridge))
           .catch(() => undefined);
         return;
       }

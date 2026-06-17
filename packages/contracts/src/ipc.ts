@@ -99,7 +99,7 @@ export type GithubBootstrapResult =
   | { readonly path: string }
   | { readonly error: string };
 
-export type GithubBootstrapRepo = "prototypes" | "sortlyBuild";
+export type GithubBootstrapRepo = "prototypes";
 
 export interface SortlyQuickInfo {
   readonly id: string;
