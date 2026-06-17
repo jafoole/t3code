@@ -24,6 +24,7 @@ import ProjectScriptsControl, { type NewProjectScriptInput } from "../ProjectScr
 import { Toggle } from "../ui/toggle";
 import { SidebarTrigger } from "../ui/sidebar";
 import { OpenInPicker } from "./OpenInPicker";
+import { QuickHeaderActions } from "../SortlyQuick/QuickHeaderActions";
 import { usePrimaryEnvironmentId } from "../../environments/primary";
 
 interface ChatHeaderProps {
@@ -122,6 +123,12 @@ export const ChatHeader = memo(function ChatHeader({
         <PrototypesPanelToggle />
       </div>
       <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 sm:shrink-0 sm:justify-end @3xl/header-actions:gap-3">
+        <QuickHeaderActions
+          openInCwd={openInCwd}
+          threadEnvironmentId={activeThreadEnvironmentId}
+          threadId={activeThreadId}
+          {...(draftId ? { draftId } : {})}
+        />
         {activeProjectScripts && (
           <ProjectScriptsControl
             scripts={activeProjectScripts}
