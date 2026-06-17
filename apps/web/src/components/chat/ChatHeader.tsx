@@ -28,6 +28,7 @@ import { Toggle } from "../ui/toggle";
 import { SidebarTrigger } from "../ui/sidebar";
 import { OpenInPicker } from "./OpenInPicker";
 import { QuickHeaderActions } from "../SortlyQuick/QuickHeaderActions";
+import { isSortlyQuickWorkspace } from "../SortlyQuick/createSortlyQuick";
 import { usePrimaryEnvironmentId } from "../../environments/primary";
 
 interface ChatHeaderProps {
@@ -99,6 +100,10 @@ export const ChatHeader = memo(function ChatHeader({
     activeThreadEnvironmentId,
     primaryEnvironmentId,
   });
+  // Sortly Quick threads are design surfaces, not code projects — hide the
+  // dev-oriented controls (git, project scripts, open-in-editor) that have no
+  // meaning here. Share / Figma / canvas stay.
+  const isQuick = isSortlyQuickWorkspace(openInCwd);
 
   return (
     <div className="@container/header-actions flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -118,7 +123,7 @@ export const ChatHeader = memo(function ChatHeader({
             <span className="min-w-0 truncate">{activeProjectName}</span>
           </Badge>
         )}
-        {activeProjectName && !isGitRepo && (
+        {activeProjectName && !isGitRepo && !isQuick && (
           <Badge variant="outline" className="shrink-0 text-[10px] text-amber-700">
             No Git
           </Badge>
@@ -132,7 +137,7 @@ export const ChatHeader = memo(function ChatHeader({
           threadId={activeThreadId}
           {...(draftId ? { draftId } : {})}
         />
-        {activeProjectScripts && (
+        {activeProjectScripts && !isQuick && (
           <ProjectScriptsControl
             scripts={activeProjectScripts}
             keybindings={keybindings}
@@ -143,14 +148,14 @@ export const ChatHeader = memo(function ChatHeader({
             onDeleteScript={onDeleteProjectScript}
           />
         )}
-        {showOpenInPicker && (
+        {showOpenInPicker && !isQuick && (
           <OpenInPicker
             keybindings={keybindings}
             availableEditors={availableEditors}
             openInCwd={openInCwd}
           />
         )}
-        {activeProjectName && (
+        {activeProjectName && !isQuick && (
           <GitActionsControl
             gitCwd={gitCwd}
             activeThreadRef={scopeThreadRef(activeThreadEnvironmentId, activeThreadId)}

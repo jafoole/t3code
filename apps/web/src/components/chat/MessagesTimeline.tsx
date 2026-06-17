@@ -18,6 +18,7 @@ import {
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
 import { FileDiff } from "@pierre/diffs/react";
 import { deriveTimelineEntries, formatElapsed } from "../../session-logic";
+import { isSortlyQuickWorkspace } from "../SortlyQuick/createSortlyQuick";
 import { type TurnDiffSummary } from "../../types";
 import { summarizeTurnDiffStats } from "../../lib/turnDiffTree";
 import {
@@ -268,7 +269,9 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     return (
       <div className="flex h-full items-center justify-center">
         <p className="text-sm text-muted-foreground/30">
-          Send a message to start the conversation.
+          {isSortlyQuickWorkspace(workspaceRoot)
+            ? "Send a message to start designing."
+            : "Send a message to start the conversation."}
         </p>
       </div>
     );
