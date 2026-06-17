@@ -236,6 +236,17 @@ const fetchJson = (url: string, init: RequestInit) =>
       }),
   });
 
+// Fire-and-forget warm-up of a cold Vercel endpoint. The per-prototype MCP
+// route (/api/mcp/<id>) isn't touched until the user's first "build" message,
+// so it cold-starts on the interactive critical path. Pinging it at create
+// time boots the serverless function ahead of the agent's MCP handshake. Kept
+// detached, time-boxed, and error-swallowed so it can never affect (or delay)
+// the create result.
+const warmEndpoint = (url: string) =>
+  Effect.tryPromise(() =>
+    fetch(url, { method: "GET", signal: AbortSignal.timeout(2000) }),
+  ).pipe(Effect.ignore);
+
 function slugify(name: string): string {
   const slug = name
     .toLowerCase()
@@ -265,6 +276,12 @@ const doCreate = Effect.fn("desktop.ipc.sortlyQuick.doCreate")(function* (name: 
   const editUrl = `${viewUrl}?edit=${editToken}`;
   const mcpUrl = `${SORTLY_QUICK_BASE_URL}/api/mcp/${id}?edit=${editToken}`;
 
+  // Warm the cold MCP function now (detached) so it's ready by the time the
+  // agent connects on the user's first build message — overlaps the disk
+  // writes below and never blocks the returned result. forkDetach severs the
+  // fiber from this request's lifecycle so it survives after create returns.
+  yield* Effect.forkDetach(warmEndpoint(mcpUrl));
+
   const workspaceRoot = path.join(
     NodeOS.homedir(),
     QUICKS_DIR_NAME,
@@ -272,28 +289,34 @@ const doCreate = Effect.fn("desktop.ipc.sortlyQuick.doCreate")(function* (name: 
   );
   yield* fileSystem.makeDirectory(path.join(workspaceRoot, ".claude"), { recursive: true });
 
+  // The four workspace files are independent — write them concurrently.
   // .mcp.json is how the Claude Code engine discovers the prototype's MCP
-  // server — no user-facing connection setup. The edit token lives in this
-  // local file only; the workspace is never committed anywhere.
-  yield* fileSystem.writeFileString(
-    path.join(workspaceRoot, ".mcp.json"),
-    JSON.stringify(
-      { mcpServers: { "sortly-quick": { type: "http", url: mcpUrl } } },
-      null,
-      2,
-    ),
-  );
-  yield* fileSystem.writeFileString(
-    path.join(workspaceRoot, ".claude", "settings.json"),
-    JSON.stringify({ enableAllProjectMcpServers: true }, null, 2),
-  );
-  yield* fileSystem.writeFileString(
-    path.join(workspaceRoot, "CLAUDE.md"),
-    buildWorkspaceClaudeMd(name, viewUrl),
-  );
-  yield* fileSystem.writeFileString(
-    path.join(workspaceRoot, QUICK_MANIFEST_FILE),
-    JSON.stringify({ id, name, viewUrl, editUrl }, null, 2),
+  // server — no user-facing connection setup. The edit token lives in these
+  // local files only; the workspace is never committed anywhere.
+  yield* Effect.all(
+    [
+      fileSystem.writeFileString(
+        path.join(workspaceRoot, ".mcp.json"),
+        JSON.stringify(
+          { mcpServers: { "sortly-quick": { type: "http", url: mcpUrl } } },
+          null,
+          2,
+        ),
+      ),
+      fileSystem.writeFileString(
+        path.join(workspaceRoot, ".claude", "settings.json"),
+        JSON.stringify({ enableAllProjectMcpServers: true }, null, 2),
+      ),
+      fileSystem.writeFileString(
+        path.join(workspaceRoot, "CLAUDE.md"),
+        buildWorkspaceClaudeMd(name, viewUrl),
+      ),
+      fileSystem.writeFileString(
+        path.join(workspaceRoot, QUICK_MANIFEST_FILE),
+        JSON.stringify({ id, name, viewUrl, editUrl }, null, 2),
+      ),
+    ],
+    { concurrency: "unbounded" },
   );
 
   return { path: workspaceRoot, id, name, viewUrl, editUrl };
