@@ -1,5 +1,13 @@
 import { create } from "zustand";
 
+/**
+ * The Prototypes panel currently renders placeholder data (see
+ * `mockPrototypes.ts` — fabricated teammates/branches). Keep it hidden until
+ * it's wired to real Quick data so fake entries never ship to users. Flip to
+ * `true` once the panel is backed by real prototypes.
+ */
+export const PROTOTYPES_PANEL_ENABLED = false;
+
 interface PrototypesPanelStore {
   open: boolean;
   enabled: Set<string>;
