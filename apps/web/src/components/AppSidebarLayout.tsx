@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 
 import { PrototypesPanel } from "./Prototypes/PrototypesPanel";
+import { PROTOTYPES_PANEL_ENABLED } from "./Prototypes/prototypesPanelStore";
 import ThreadSidebar from "./Sidebar";
 import { Sidebar, SidebarProvider, SidebarRail } from "./ui/sidebar";
 import {
@@ -70,7 +71,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         <ThreadSidebar />
         <SidebarRail />
       </Sidebar>
-      <PrototypesPanel />
+      {PROTOTYPES_PANEL_ENABLED && <PrototypesPanel />}
       {children}
     </SidebarProvider>
   );
