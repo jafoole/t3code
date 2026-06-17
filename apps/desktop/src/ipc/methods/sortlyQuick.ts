@@ -88,6 +88,32 @@ then build it on the canvas with the MCP tools below.
 - Do NOT create local source files; the prototype's only home is the server.
   The user sees changes in their canvas immediately after update_prototype.
 
+## Color tokens — Sortly DS (use these EXACT class names; never guess hex)
+
+Colors are Tailwind utility classes: \`bg-<token>\`, \`text-<token>\`, \`border-<token>\`
+(e.g. \`bg-brand\`, \`text-grey-700\`, \`border-grey-200\`, \`bg-yellow-500\`). Every token below
+exists in all three forms. ALWAYS pick a token from this list — never invent a name or a raw
+hex. Shades run light→dark: 25/50 = pale tint backgrounds, 500 = base, 700–900 = dark text/emphasis.
+
+- **System:** white (#FFFFFF), black (#000000)
+- **Brand (Sortly red):** brand (#DD2A3B), brand-light (#E45562), brand-dark (#C92636)
+- **Grey (neutral):** grey-25 #FBFBFB · 50 #F7F7F7 · 100 #EEEFEF · 200 #E4E4E5 · 300 #CBCCCE · 400 #A8A8AC · 500 #8F9095 · 600 #76777D · 700 #54565D · 800 #464850 · 900 #2F313A
+- **Green (Success):** green-25→900, base green-500 #2B8444
+- **Yellow (Caution):** yellow-25→900, base yellow-500 #E7C000
+- **Orange (Warning):** orange-25→900, base orange-500 #E76500
+- **Red (Error):** red-25→900, base red-500 #BF2323
+- **Blue (Info):** blue-25→900, base blue-500 #1364D6
+- **Supporting:** pink, fuchsia, purple, indigo, teal — each 50→900 (e.g. teal-500 #046C7A, purple-500 #6C32A9, indigo-500 #533DB6)
+
+Examples: success accent → \`bg-green-500\`; caution badge → \`bg-yellow-100 text-yellow-900\`;
+primary button → \`bg-brand text-white\`; body text → \`text-grey-700\`; card border → \`border-grey-200\`.
+The DS "green" is \`green-500\` and the DS "yellow" is \`yellow-500\` — to recolor green→yellow, swap
+\`bg-green-500\`→\`bg-yellow-500\` (and any matching \`text-green-*\`/\`border-green-*\`). Don't go hunting
+for the value — it's right here.
+
+Text styles are classes too: \`text-style-<name>\` (e.g. \`text-style-headings-card\`,
+\`text-style-body-regular\`, \`text-style-body-caption\`). Typeface is Poppins.
+
 ## Figma round-trip — Send to Figma / Update from Figma
 
 The user can take this design to Figma to tweak it, then bring the changes back.
@@ -236,6 +262,17 @@ const fetchJson = (url: string, init: RequestInit) =>
       }),
   });
 
+// Fire-and-forget warm-up of a cold Vercel endpoint. The per-prototype MCP
+// route (/api/mcp/<id>) isn't touched until the user's first "build" message,
+// so it cold-starts on the interactive critical path. Pinging it at create
+// time boots the serverless function ahead of the agent's MCP handshake. Kept
+// detached, time-boxed, and error-swallowed so it can never affect (or delay)
+// the create result.
+const warmEndpoint = (url: string) =>
+  Effect.tryPromise(() =>
+    fetch(url, { method: "GET", signal: AbortSignal.timeout(2000) }),
+  ).pipe(Effect.ignore);
+
 function slugify(name: string): string {
   const slug = name
     .toLowerCase()
@@ -265,6 +302,12 @@ const doCreate = Effect.fn("desktop.ipc.sortlyQuick.doCreate")(function* (name: 
   const editUrl = `${viewUrl}?edit=${editToken}`;
   const mcpUrl = `${SORTLY_QUICK_BASE_URL}/api/mcp/${id}?edit=${editToken}`;
 
+  // Warm the cold MCP function now (detached) so it's ready by the time the
+  // agent connects on the user's first build message — overlaps the disk
+  // writes below and never blocks the returned result. forkDetach severs the
+  // fiber from this request's lifecycle so it survives after create returns.
+  yield* Effect.forkDetach(warmEndpoint(mcpUrl));
+
   const workspaceRoot = path.join(
     NodeOS.homedir(),
     QUICKS_DIR_NAME,
@@ -272,28 +315,34 @@ const doCreate = Effect.fn("desktop.ipc.sortlyQuick.doCreate")(function* (name: 
   );
   yield* fileSystem.makeDirectory(path.join(workspaceRoot, ".claude"), { recursive: true });
 
+  // The four workspace files are independent — write them concurrently.
   // .mcp.json is how the Claude Code engine discovers the prototype's MCP
-  // server — no user-facing connection setup. The edit token lives in this
-  // local file only; the workspace is never committed anywhere.
-  yield* fileSystem.writeFileString(
-    path.join(workspaceRoot, ".mcp.json"),
-    JSON.stringify(
-      { mcpServers: { "sortly-quick": { type: "http", url: mcpUrl } } },
-      null,
-      2,
-    ),
-  );
-  yield* fileSystem.writeFileString(
-    path.join(workspaceRoot, ".claude", "settings.json"),
-    JSON.stringify({ enableAllProjectMcpServers: true }, null, 2),
-  );
-  yield* fileSystem.writeFileString(
-    path.join(workspaceRoot, "CLAUDE.md"),
-    buildWorkspaceClaudeMd(name, viewUrl),
-  );
-  yield* fileSystem.writeFileString(
-    path.join(workspaceRoot, QUICK_MANIFEST_FILE),
-    JSON.stringify({ id, name, viewUrl, editUrl }, null, 2),
+  // server — no user-facing connection setup. The edit token lives in these
+  // local files only; the workspace is never committed anywhere.
+  yield* Effect.all(
+    [
+      fileSystem.writeFileString(
+        path.join(workspaceRoot, ".mcp.json"),
+        JSON.stringify(
+          { mcpServers: { "sortly-quick": { type: "http", url: mcpUrl } } },
+          null,
+          2,
+        ),
+      ),
+      fileSystem.writeFileString(
+        path.join(workspaceRoot, ".claude", "settings.json"),
+        JSON.stringify({ enableAllProjectMcpServers: true }, null, 2),
+      ),
+      fileSystem.writeFileString(
+        path.join(workspaceRoot, "CLAUDE.md"),
+        buildWorkspaceClaudeMd(name, viewUrl),
+      ),
+      fileSystem.writeFileString(
+        path.join(workspaceRoot, QUICK_MANIFEST_FILE),
+        JSON.stringify({ id, name, viewUrl, editUrl }, null, 2),
+      ),
+    ],
+    { concurrency: "unbounded" },
   );
 
   return { path: workspaceRoot, id, name, viewUrl, editUrl };
