@@ -100,6 +100,10 @@ async function ensureSortlyProject(destPath: string, title = "Sortly Prototypes"
   const ensuredKey = `pallet:auto-ensured-project:${conn.environmentId}:${destPath}`;
   try {
     if (localStorage.getItem(ensuredKey)) return;
+    // Claim synchronously (no await before this) so a double-invoked bootstrap
+    // (React StrictMode fires effects twice in dev) can't slip past and create a
+    // second copy.
+    localStorage.setItem(ensuredKey, "1");
   } catch {
     // localStorage unavailable — fall back to the (best-effort) store check.
   }
