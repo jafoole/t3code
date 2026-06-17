@@ -91,12 +91,35 @@ async function ensureSortlyProject(destPath: string, title = "Sortly Prototypes"
   const conn = getPrimaryEnvironmentConnection();
   if (!conn) return;
 
+  // Auto-create at most once per environment+path. The in-memory project store
+  // hydrates from the server asynchronously, so at bootstrap it's often still
+  // empty — the findProjectByPath check below then races and dispatches a fresh
+  // duplicate on nearly every launch (that's how 100+ "Sortly Prototypes" dupes
+  // piled up). A persisted marker removes the race AND means a project the user
+  // deliberately deleted is never silently resurrected.
+  const ensuredKey = `pallet:auto-ensured-project:${conn.environmentId}:${destPath}`;
+  try {
+    if (localStorage.getItem(ensuredKey)) return;
+  } catch {
+    // localStorage unavailable — fall back to the (best-effort) store check.
+  }
+  const markEnsured = () => {
+    try {
+      localStorage.setItem(ensuredKey, "1");
+    } catch {
+      // ignore — non-persistent, but the store check still guards within a session
+    }
+  };
+
   const projects = selectProjectsAcrossEnvironments(useStore.getState()).filter(
     (p) => p.environmentId === conn.environmentId,
   );
 
   const existing = findProjectByPath(projects, destPath);
-  if (existing) return;
+  if (existing) {
+    markEnsured();
+    return;
+  }
 
   await conn.client.orchestration.dispatchCommand({
     type: "project.create",
@@ -111,6 +134,7 @@ async function ensureSortlyProject(destPath: string, title = "Sortly Prototypes"
     },
     createdAt: new Date().toISOString(),
   });
+  markEnsured();
 }
 
 async function runPoll(deviceCode: string, currentInterval: number): Promise<void> {

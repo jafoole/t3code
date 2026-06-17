@@ -120,11 +120,11 @@ The user can take this design to Figma to tweak it, then bring the changes back.
 You drive this with the **Figma MCP** (session-connected) plus the Quick MCP.
 
 **Baked-in Sortly Design System (ALWAYS use this, never other Sortly libraries):**
-- DS Figma file key: \`JzrHuML2B6dPtb0sBn3hm7\` (PALLET Web DS)
+- DS Figma file key: \`JzrHuML2B6dPtb0sBn3hm7\` (Pallet DS (web))
 - DS published library key: \`lk-e9fea3d5bd969e07f5ae88b71f9682811ef37a951f71b299402abb13bf09189b4839cde0d377d1746e36749b8394b0709f73deb24310a827ebc66b06c7c3a785\`
-  (library name "Sortly Build - PALLET Web DS"). When searching the design system,
+  (library name "Pallet DS (web)"). When searching the design system,
   ALWAYS pass \`includeLibraryKeys: ["lk-e9fea3d5…"]\` so you never grab the
-  retired/Atlas/Mobile/Web-App Buttons — only PALLET Web DS.
+  retired/Atlas/Mobile/Web-App Buttons — only Pallet DS (web).
 
 ### Send to Figma (when the user asks to send/open this in Figma)
 1. Load the \`figma-use\` and \`figma-generate-design\` skills (mandatory before any
@@ -132,7 +132,7 @@ You drive this with the **Figma MCP** (session-connected) plus the Quick MCP.
 2. **Destination:** if the user gave a Figma file URL, build there. If not, just
    confirm they're connected to Figma and **create a new Figma file** for them
    (the build tools operate on the file open in their Figma desktop app).
-3. Rebuild the design as a frame using **PALLET Web DS** component instances
+3. Rebuild the design as a frame using **Pallet DS (web)** component instances
    (locked to the library key above) + DS color variables and text styles. For any
    component with no DS equivalent (e.g. a summary-stat/KPI card), compose it from
    DS primitives and log the gap.
@@ -157,7 +157,7 @@ pre-build inspections every time, BEFORE placing any node:
   (sidebar, header, etc.), use it ALONE. NEVER wrap it in a custom dark frame, add a
   duplicate logo, or place a separate User Avatar on top — that stacks backgrounds and
   shows placeholder text ("FL / Label").
-- **b) Never hardcode a font.** The PALLET Web DS uses **Poppins**, not Inter. Before
+- **b) Never hardcode a font.** The Pallet DS (web) uses **Poppins**, not Inter. Before
   writing ANY text, inspect a DS component's text node \`fontName.family\` (e.g. read
   Single Summary Stat's text nodes → Poppins). Load and use that family for all manual
   text. Do not assume Inter.
