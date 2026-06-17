@@ -116,9 +116,12 @@ async function ensureSortlyProject(destPath: string, title = "Sortly Prototypes"
 async function bootstrapSortlyBuildProject(
   bridge: NonNullable<typeof window.desktopBridge>,
 ): Promise<void> {
-  const result = await bridge.githubBootstrapProject("sortlyBuild");
-  if ("error" in result) return;
-  await ensureSortlyProject(result.path, "Sortly Build").catch(() => undefined);
+  // Clone the DS repo to disk (used for design-system / Code Connect edits), but
+  // do NOT register it as a visible Pallet project. "Sortly Build" as a project
+  // is legacy — superseded by Sortly Quick — and re-registering it on every
+  // launch made it impossible to delete (it kept reappearing). The folder stays
+  // on disk; it just no longer shows in the sidebar.
+  await bridge.githubBootstrapProject("sortlyBuild");
 }
 
 async function runPoll(deviceCode: string, currentInterval: number): Promise<void> {
