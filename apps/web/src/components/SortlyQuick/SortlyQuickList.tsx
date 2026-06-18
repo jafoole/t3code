@@ -2,7 +2,8 @@ import { scopeThreadRef } from "@t3tools/client-runtime";
 import type { ContextMenuItem } from "@t3tools/contracts";
 import { useRouter } from "@tanstack/react-router";
 import { MoreVerticalIcon } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 import { useComposerDraftStore } from "../../composerDraftStore";
 import { readEnvironmentApi } from "../../environmentApi";
@@ -67,8 +68,29 @@ function SortlyQuickRow({
 }) {
   const router = useRouter();
   const [renaming, setRenaming] = useState(false);
-  const [draftName, setDraftName] = useState(quick.name);
   const primaryRef = quick.memberProjectRefs[0];
+
+  // A Quick has one conversation. Reactively track its newest live thread so
+  // the row shows the same descriptive name as the header (the thread title) —
+  // not the static "Quick — <date>" project name.
+  const liveThreads = useStore(
+    useShallow((state) =>
+      selectSidebarThreadsForProjectRefs(state, quick.memberProjectRefs).filter(
+        (thread) => thread.archivedAt === null,
+      ),
+    ),
+  );
+  const newestThread = useMemo(
+    () =>
+      [...liveThreads].sort((a, b) =>
+        (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt),
+      )[0] ?? null,
+    [liveThreads],
+  );
+  // The thread title is the descriptive name; fall back to the project name for
+  // an unsent (empty) Quick that has no thread yet.
+  const displayName = newestThread?.title?.trim() || quick.name;
+  const [draftName, setDraftName] = useState(displayName);
 
   // Open the Quick's single conversation: its newest live thread, or its
   // pending draft if it hasn't been sent yet, or a fresh thread as a fallback.
@@ -76,17 +98,12 @@ function SortlyQuickRow({
     if (!primaryRef) {
       return;
     }
-    const liveThreads = selectSidebarThreadsForProjectRefs(
-      useStore.getState(),
-      quick.memberProjectRefs,
-    ).filter((thread) => thread.archivedAt === null);
-    const newest = [...liveThreads].sort((a, b) =>
-      (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt),
-    )[0];
-    if (newest) {
+    if (newestThread) {
       void router.navigate({
         to: "/$environmentId/$threadId",
-        params: buildThreadRouteParams(scopeThreadRef(newest.environmentId, newest.id)),
+        params: buildThreadRouteParams(
+          scopeThreadRef(newestThread.environmentId, newestThread.id),
+        ),
       });
       return;
     }
@@ -122,7 +139,7 @@ function SortlyQuickRow({
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: `Failed to delete "${quick.name}"`,
+          title: `Failed to delete "${displayName}"`,
           description: cause instanceof Error ? cause.message : "Please try again.",
         }),
       );
@@ -132,25 +149,36 @@ function SortlyQuickRow({
   const commitRename = async () => {
     const next = draftName.trim();
     setRenaming(false);
-    if (!primaryRef || next.length === 0 || next === quick.name) {
-      return;
-    }
-    const api = readEnvironmentApi(primaryRef.environmentId);
-    if (!api) {
+    if (next.length === 0 || next === displayName) {
       return;
     }
     try {
-      await api.orchestration.dispatchCommand({
-        type: "project.meta.update",
-        commandId: newCommandId(),
-        projectId: primaryRef.projectId,
-        title: next,
-      });
+      // Rename the thread (its title is what the row + header show). For an
+      // unsent Quick with no thread yet, rename the project instead.
+      if (newestThread) {
+        const api = readEnvironmentApi(newestThread.environmentId);
+        if (!api) return;
+        await api.orchestration.dispatchCommand({
+          type: "thread.meta.update",
+          commandId: newCommandId(),
+          threadId: newestThread.id,
+          title: next,
+        });
+      } else if (primaryRef) {
+        const api = readEnvironmentApi(primaryRef.environmentId);
+        if (!api) return;
+        await api.orchestration.dispatchCommand({
+          type: "project.meta.update",
+          commandId: newCommandId(),
+          projectId: primaryRef.projectId,
+          title: next,
+        });
+      }
     } catch (cause) {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: `Couldn't rename "${quick.name}"`,
+          title: `Couldn't rename "${displayName}"`,
           description: cause instanceof Error ? cause.message : "Please try again.",
         }),
       );
@@ -168,7 +196,7 @@ function SortlyQuickRow({
     ];
     const clicked = await api.contextMenu.show(items, { x: clientX, y: clientY });
     if (clicked === "rename") {
-      setDraftName(quick.name);
+      setDraftName(displayName);
       setRenaming(true);
     } else if (clicked === "delete") {
       void removeQuick();
@@ -181,7 +209,7 @@ function SortlyQuickRow({
         <input
           autoFocus
           value={draftName}
-          aria-label={`Rename ${quick.name}`}
+          aria-label={`Rename ${displayName}`}
           onChange={(event) => setDraftName(event.target.value)}
           onBlur={() => void commitRename()}
           onKeyDown={(event) => {
@@ -190,7 +218,7 @@ function SortlyQuickRow({
               void commitRename();
             } else if (event.key === "Escape") {
               event.preventDefault();
-              setDraftName(quick.name);
+              setDraftName(displayName);
               setRenaming(false);
             }
           }}
@@ -213,11 +241,11 @@ function SortlyQuickRow({
         }}
       >
         <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
-        <span className="flex-1 truncate text-left text-xs">{quick.name}</span>
+        <span className="flex-1 truncate text-left text-xs">{displayName}</span>
       </SidebarMenuButton>
       <button
         type="button"
-        aria-label={`Actions for ${quick.name}`}
+        aria-label={`Actions for ${displayName}`}
         onClick={(event) => {
           event.stopPropagation();
           void showMenu(event.clientX, event.clientY);
