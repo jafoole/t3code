@@ -240,6 +240,7 @@ export function BrowserPanel() {
           onClick={() => window.desktopBridge?.browserBack()}
           disabled={!navState.canGoBack}
           title="Back"
+          aria-label="Back"
           className="rounded p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-30"
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -257,6 +258,7 @@ export function BrowserPanel() {
           onClick={() => window.desktopBridge?.browserForward()}
           disabled={!navState.canGoForward}
           title="Forward"
+          aria-label="Forward"
           className="rounded p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-30"
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -273,6 +275,7 @@ export function BrowserPanel() {
           type="button"
           onClick={() => window.desktopBridge?.browserReload()}
           title="Reload"
+          aria-label="Reload"
           className="rounded p-1.5 text-muted-foreground hover:bg-accent"
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -290,6 +293,7 @@ export function BrowserPanel() {
           onClick={() => navState.url && window.desktopBridge?.browserOpenPopout(navState.url)}
           disabled={!navState.url}
           title="Open in new window"
+          aria-label="Open in new window"
           className="rounded p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-30"
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">

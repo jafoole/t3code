@@ -15,9 +15,9 @@ import { isSortlyQuickWorkspace } from "./createSortlyQuick";
 // CLAUDE.md — these just drop the matching instruction into the composer so the
 // user can review and send it, instead of having to know the magic phrase.
 const SEND_TO_FIGMA_PROMPT =
-  "Send this design to Figma — rebuild it as a frame using the PALLET Web DS components, then give me the Figma link.";
+  "Send this design to Figma — rebuild it as a frame using the Pallet DS (web) components, then give me the Figma link.";
 const UPDATE_FROM_FIGMA_PROMPT =
-  "Update this prototype from my Figma changes. Frame URL: ";
+  "Update this prototype from my Figma changes. Frame URL: <paste the Figma frame link here>";
 const MAKE_IT_REAL_PROMPT =
   'Export a "Make it real" handoff brief for this design so I can rebuild it as a real route in my Sortly Prototypes project.';
 
@@ -118,7 +118,7 @@ export function QuickHeaderActions({
               className="shrink-0"
               variant="outline"
               size="xs"
-              aria-label="Figma and handoff actions"
+              aria-label="Figma round-trip and Make-it-real actions"
             />
           }
         >
