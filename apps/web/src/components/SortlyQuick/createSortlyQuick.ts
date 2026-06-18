@@ -13,7 +13,11 @@ export function isSortlyQuickWorkspace(workspaceRoot: string | null | undefined)
 
 export function defaultQuickName(now = new Date()): string {
   const date = now.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  const time = now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const time = now.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
   return `Quick — ${date} ${time}`;
 }
 

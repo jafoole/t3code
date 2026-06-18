@@ -19,6 +19,8 @@ import {
 } from "./ThreadStatusIndicators";
 import { ProjectFavicon } from "./ProjectFavicon";
 import { NewSortlyQuickButton } from "./SortlyQuick/NewSortlyQuickButton";
+import { isSortlyQuickWorkspace } from "./SortlyQuick/createSortlyQuick";
+import { SortlyQuickList } from "./SortlyQuick/SortlyQuickList";
 import { autoAnimate } from "@formkit/auto-animate";
 import React, { useCallback, useEffect, memo, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -2552,7 +2554,6 @@ interface SidebarProjectsContentProps {
   suppressProjectClickAfterDragRef: React.RefObject<boolean>;
   suppressProjectClickForContextMenuRef: React.RefObject<boolean>;
   attachProjectListAutoAnimateRef: (node: HTMLElement | null) => void;
-  projectsLength: number;
 }
 
 const SidebarProjectsContent = memo(function SidebarProjectsContent(
@@ -2593,7 +2594,6 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
     suppressProjectClickAfterDragRef,
     suppressProjectClickForContextMenuRef,
     attachProjectListAutoAnimateRef,
-    projectsLength,
   } = props;
 
   const handleProjectSortOrderChange = useCallback(
@@ -2619,6 +2619,14 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
       updateSettings({ sidebarThreadPreviewCount: count });
     },
     [updateSettings],
+  );
+
+  // Quicks are single prototypes, not multi-thread projects — split them out
+  // of the Projects list and render them flat under the "Sortly Quicks"
+  // section instead.
+  const quickProjects = sortedProjects.filter((project) => isSortlyQuickWorkspace(project.cwd));
+  const nonQuickProjects = sortedProjects.filter(
+    (project) => !isSortlyQuickWorkspace(project.cwd),
   );
 
   return (
@@ -2670,6 +2678,11 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
         </SidebarGroup>
       ) : null}
       <NewSortlyQuickButton />
+      <SortlyQuickList
+        quicks={quickProjects}
+        activeRouteProjectKey={activeRouteProjectKey}
+        handleNewThread={handleNewThread}
+      />
       <SidebarGroup className="px-2 py-2">
         <div className="mb-1 flex items-center justify-between pl-2 pr-1.5">
           <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
@@ -2716,10 +2729,10 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
           >
             <SidebarMenu>
               <SortableContext
-                items={sortedProjects.map((project) => project.projectKey)}
+                items={nonQuickProjects.map((project) => project.projectKey)}
                 strategy={verticalListSortingStrategy}
               >
-                {sortedProjects.map((project) => (
+                {nonQuickProjects.map((project) => (
                   <SortableProjectItem key={project.projectKey} projectId={project.projectKey}>
                     {(dragHandleProps) => (
                       <SidebarProjectItem
@@ -2752,7 +2765,7 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
           </DndContext>
         ) : (
           <SidebarMenu ref={attachProjectListAutoAnimateRef}>
-            {sortedProjects.map((project) => (
+            {nonQuickProjects.map((project) => (
               <SidebarProjectListRow
                 key={project.projectKey}
                 project={project}
@@ -2778,7 +2791,7 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
           </SidebarMenu>
         )}
 
-        {projectsLength === 0 && (
+        {nonQuickProjects.length === 0 && (
           <div className="px-2 pt-4 text-center text-xs text-muted-foreground/60">
             No projects yet
           </div>
@@ -3457,7 +3470,6 @@ export default function Sidebar() {
             suppressProjectClickAfterDragRef={suppressProjectClickAfterDragRef}
             suppressProjectClickForContextMenuRef={suppressProjectClickForContextMenuRef}
             attachProjectListAutoAnimateRef={attachProjectListAutoAnimateRef}
-            projectsLength={projects.length}
           />
 
           <SidebarSeparator />
