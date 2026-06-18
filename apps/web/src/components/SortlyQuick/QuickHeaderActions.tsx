@@ -1,7 +1,7 @@
 import { type EnvironmentId, type ThreadId } from "@t3tools/contracts";
 import { scopeThreadRef } from "@t3tools/client-runtime";
 import { useEffect, useState } from "react";
-import { ChevronDownIcon, FigmaIcon, Share2Icon } from "lucide-react";
+import { ChevronDownIcon, FigmaIcon, Share2Icon, SparklesIcon } from "lucide-react";
 
 import { useComposerDraftStore, type DraftId } from "~/composerDraftStore";
 import { Button } from "../ui/button";
@@ -30,8 +30,10 @@ interface QuickHeaderActionsProps {
 
 /**
  * Header controls for a Sortly Quick thread: a one-click Share (copies the
- * clean, token-free view URL) and a Figma/"Make it real" menu. Renders nothing
- * for non-Quick threads, so it's inert everywhere else.
+ * clean, token-free view URL), a Figma round-trip menu (Send to / Update
+ * from), and a separate "Make it real" button (a Sortly-app handoff, not a
+ * Figma action). Renders nothing for non-Quick threads, so it's inert
+ * everywhere else.
  */
 export function QuickHeaderActions({
   openInCwd,
@@ -118,7 +120,7 @@ export function QuickHeaderActions({
               className="shrink-0"
               variant="outline"
               size="xs"
-              aria-label="Figma round-trip and Make-it-real actions"
+              aria-label="Figma round-trip actions"
             />
           }
         >
@@ -131,9 +133,27 @@ export function QuickHeaderActions({
           <MenuItem onClick={() => injectPrompt(UPDATE_FROM_FIGMA_PROMPT)}>
             Update from Figma…
           </MenuItem>
-          <MenuItem onClick={() => injectPrompt(MAKE_IT_REAL_PROMPT)}>Make it real in Sortly</MenuItem>
         </MenuPopup>
       </Menu>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              className="shrink-0"
+              variant="outline"
+              size="xs"
+              aria-label="Make it real in Sortly"
+              onClick={() => injectPrompt(MAKE_IT_REAL_PROMPT)}
+            >
+              <SparklesIcon className="size-3" />
+              <span className="ml-1 hidden @lg/header-actions:inline">Make it real</span>
+            </Button>
+          }
+        />
+        <TooltipPopup side="bottom">
+          Export a handoff brief to rebuild this in the real Sortly app
+        </TooltipPopup>
+      </Tooltip>
     </>
   );
 }
