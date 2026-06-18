@@ -64,7 +64,11 @@ import {
   githubAuthStartDeviceFlow,
 } from "./methods/githubAuth.ts";
 import { bootstrapPrototypesProject } from "./methods/projectBootstrap.ts";
-import { sortlyQuickCreate, sortlyQuickInfo } from "./methods/sortlyQuick.ts";
+import {
+  sortlyQuickCreate,
+  sortlyQuickInfo,
+  sortlyQuickPublish,
+} from "./methods/sortlyQuick.ts";
 
 export const installDesktopIpcHandlers = Effect.gen(function* () {
   const ipc = yield* DesktopIpc.DesktopIpc;
@@ -126,4 +130,5 @@ export const installDesktopIpcHandlers = Effect.gen(function* () {
   yield* ipc.handle(bootstrapPrototypesProject);
   yield* ipc.handle(sortlyQuickCreate);
   yield* ipc.handle(sortlyQuickInfo);
+  yield* ipc.handle(sortlyQuickPublish);
 }).pipe(Effect.withSpan("desktop.ipc.installHandlers"));

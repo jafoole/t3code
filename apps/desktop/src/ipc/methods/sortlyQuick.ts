@@ -39,6 +39,20 @@ const CreateResultSchema = Schema.Union([
 const InfoPayloadSchema = Schema.Struct({ workspaceRoot: Schema.String });
 const InfoResultSchema = Schema.NullOr(QuickInfoSchema);
 
+const PublishPayloadSchema = Schema.Struct({
+  workspaceRoot: Schema.String,
+  publish: Schema.Boolean,
+});
+const PublishResultSchema = Schema.Union([
+  Schema.Struct({ ok: Schema.Literal(true), isPublic: Schema.Boolean }),
+  Schema.Struct({ error: Schema.String }),
+]);
+
+// Compiled once at module scope (the lint rule flags rebuilding it per call).
+const decodeQuickInfoJson = Schema.decodeUnknownEffect(
+  Schema.fromJsonString(QuickInfoSchema),
+);
+
 // The agent's standing orders for every Quick workspace. The workspace holds
 // no app code — the prototype lives on the Sortly Quick server and is reached
 // exclusively through the MCP tools configured in .mcp.json.
@@ -388,9 +402,57 @@ export const sortlyQuickInfo = makeIpcMethod({
       .readFileString(manifestPath)
       .pipe(Effect.orElseSucceed(() => null));
     if (raw === null) return null;
-    const decoded = yield* Schema.decodeUnknownEffect(
-      Schema.fromJsonString(QuickInfoSchema),
-    )(raw).pipe(Effect.orElseSucceed(() => null));
+    const decoded = yield* decodeQuickInfoJson(raw).pipe(
+      Effect.orElseSucceed(() => null),
+    );
     return decoded;
+  }),
+});
+
+// Publish / unpublish a Quick to the gallery. The prototype's owner secret
+// (the edit token) lives in the workspace manifest (editUrl = viewUrl?edit=…),
+// so we read it and authorize the publish call as the owner — no Google login
+// needed on this side (browsing + upvoting the gallery is what requires it).
+const doPublish = Effect.fn("desktop.ipc.sortlyQuick.doPublish")(function* (
+  workspaceRoot: string,
+  publish: boolean,
+) {
+  const fileSystem = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const manifestPath = path.join(workspaceRoot, QUICK_MANIFEST_FILE);
+  const raw = yield* fileSystem
+    .readFileString(manifestPath)
+    .pipe(Effect.orElseSucceed(() => null));
+  if (raw === null) {
+    return { error: "This Quick has no manifest, so it can't be published." };
+  }
+  const info = yield* decodeQuickInfoJson(raw).pipe(
+    Effect.orElseSucceed(() => null),
+  );
+  if (info === null) {
+    return { error: "Couldn't read this Quick's manifest." };
+  }
+  // editUrl is `${viewUrl}?edit=${token}` — the token is the only query param.
+  const editToken = info.editUrl.split("?edit=")[1] ?? null;
+  if (!editToken) {
+    return { error: "This Quick's manifest is missing its edit token." };
+  }
+  yield* fetchJson(`${SORTLY_QUICK_BASE_URL}/api/prototypes/${info.id}/publish`, {
+    method: publish ? "POST" : "DELETE",
+    headers: { Authorization: `Bearer ${editToken}` },
+  });
+  return { ok: true as const, isPublic: publish };
+});
+
+export const sortlyQuickPublish = makeIpcMethod({
+  channel: IpcChannels.SORTLY_QUICK_PUBLISH_CHANNEL,
+  payload: PublishPayloadSchema,
+  result: PublishResultSchema,
+  handler: Effect.fn("desktop.ipc.sortlyQuick.publish")(function* ({ workspaceRoot, publish }) {
+    const result = yield* Effect.result(doPublish(workspaceRoot, publish));
+    if (Result.isSuccess(result)) {
+      return result.success;
+    }
+    return { error: result.failure.message };
   }),
 });

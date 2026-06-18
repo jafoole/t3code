@@ -112,6 +112,10 @@ export type SortlyQuickCreateResult =
   | (SortlyQuickInfo & { readonly path: string })
   | { readonly error: string };
 
+export type SortlyQuickPublishResult =
+  | { readonly ok: true; readonly isPublic: boolean }
+  | { readonly error: string };
+
 export interface ContextMenuItem<T extends string = string> {
   id: T;
   label: string;
@@ -546,6 +550,10 @@ export interface DesktopBridge {
   githubBootstrapProject: (repo?: GithubBootstrapRepo) => Promise<GithubBootstrapResult>;
   sortlyQuickCreate: (name: string) => Promise<SortlyQuickCreateResult>;
   sortlyQuickInfo: (workspaceRoot: string) => Promise<SortlyQuickInfo | null>;
+  sortlyQuickPublish: (
+    workspaceRoot: string,
+    publish: boolean,
+  ) => Promise<SortlyQuickPublishResult>;
 }
 
 /**

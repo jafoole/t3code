@@ -1,7 +1,7 @@
 import { type EnvironmentId, type ThreadId } from "@t3tools/contracts";
 import { scopeThreadRef } from "@t3tools/client-runtime";
 import { useEffect, useState } from "react";
-import { ChevronDownIcon, FigmaIcon, Share2Icon, SparklesIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, FigmaIcon, GlobeIcon, Share2Icon } from "lucide-react";
 
 import { useComposerDraftStore, type DraftId } from "~/composerDraftStore";
 import { Button } from "../ui/button";
@@ -10,16 +10,14 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { toastManager, stackedThreadToast } from "../ui/toast";
 import { isSortlyQuickWorkspace } from "./createSortlyQuick";
 
-// The design verbs for a Sortly Quick. Send-to-Figma / Update-from-Figma /
-// Make-it-real are all driven by the agent's standing orders in the workspace
-// CLAUDE.md — these just drop the matching instruction into the composer so the
-// user can review and send it, instead of having to know the magic phrase.
+// The Figma verbs for a Sortly Quick. Both are driven by the agent's standing
+// orders in the workspace CLAUDE.md — these just drop the matching instruction
+// into the composer so the user can review and send it, instead of having to
+// know the magic phrase.
 const SEND_TO_FIGMA_PROMPT =
   "Send this design to Figma — rebuild it as a frame using the Pallet DS (web) components, then give me the Figma link.";
 const UPDATE_FROM_FIGMA_PROMPT =
   "Update this prototype from my Figma changes. Frame URL: <paste the Figma frame link here>";
-const MAKE_IT_REAL_PROMPT =
-  'Export a "Make it real" handoff brief for this design so I can rebuild it as a real route in my Sortly Prototypes project.';
 
 interface QuickHeaderActionsProps {
   readonly openInCwd: string | null;
@@ -31,9 +29,9 @@ interface QuickHeaderActionsProps {
 /**
  * Header controls for a Sortly Quick thread: a one-click Share (copies the
  * clean, token-free view URL), a Figma round-trip menu (Send to / Update
- * from), and a separate "Make it real" button (a Sortly-app handoff, not a
- * Figma action). Renders nothing for non-Quick threads, so it's inert
- * everywhere else.
+ * from), and a Publish button that posts the prototype to the login-gated
+ * gallery for the team to see and upvote. Renders nothing for non-Quick
+ * threads, so it's inert everywhere else.
  */
 export function QuickHeaderActions({
   openInCwd,
@@ -43,6 +41,10 @@ export function QuickHeaderActions({
 }: QuickHeaderActionsProps) {
   const isQuick = isSortlyQuickWorkspace(openInCwd);
   const [viewUrl, setViewUrl] = useState<string | null>(null);
+  // We don't know the published state on load (the local manifest doesn't
+  // track it), so start at "idle" — publishing is idempotent, so a re-publish
+  // is harmless. After an action we reflect the server's answer.
+  const [publishState, setPublishState] = useState<"idle" | "working" | "published">("idle");
 
   useEffect(() => {
     if (!isQuick || !openInCwd) {
@@ -89,6 +91,34 @@ export function QuickHeaderActions({
         }),
       );
     }
+  };
+
+  const handlePublish = async () => {
+    if (!openInCwd || publishState === "working") return;
+    const wantPublish = publishState !== "published";
+    setPublishState("working");
+    const result = await window.desktopBridge?.sortlyQuickPublish?.(openInCwd, wantPublish);
+    if (!result || "error" in result) {
+      setPublishState(wantPublish ? "idle" : "published");
+      toastManager.add(
+        stackedThreadToast({
+          type: "error",
+          title: wantPublish ? "Couldn't publish" : "Couldn't unpublish",
+          description: result && "error" in result ? result.error : "Please try again.",
+        }),
+      );
+      return;
+    }
+    setPublishState(result.isPublic ? "published" : "idle");
+    toastManager.add(
+      stackedThreadToast({
+        type: "success",
+        title: result.isPublic ? "Published to the gallery" : "Removed from the gallery",
+        description: result.isPublic
+          ? "The team can now see and upvote it in the Gallery."
+          : "It no longer appears in the gallery.",
+      }),
+    );
   };
 
   return (
@@ -142,16 +172,33 @@ export function QuickHeaderActions({
               className="shrink-0"
               variant="outline"
               size="xs"
-              aria-label="Make it real in Sortly"
-              onClick={() => injectPrompt(MAKE_IT_REAL_PROMPT)}
+              aria-label={
+                publishState === "published"
+                  ? "Published to the gallery — click to remove"
+                  : "Publish to the Sortly Quick gallery"
+              }
+              disabled={publishState === "working"}
+              onClick={handlePublish}
             >
-              <SparklesIcon className="size-3" />
-              <span className="ml-1 hidden @lg/header-actions:inline">Make it real</span>
+              {publishState === "published" ? (
+                <CheckIcon className="size-3" />
+              ) : (
+                <GlobeIcon className="size-3" />
+              )}
+              <span className="ml-1 hidden @lg/header-actions:inline">
+                {publishState === "published"
+                  ? "Published"
+                  : publishState === "working"
+                    ? "Publishing…"
+                    : "Publish"}
+              </span>
             </Button>
           }
         />
         <TooltipPopup side="bottom">
-          Export a handoff brief to rebuild this in the real Sortly app
+          {publishState === "published"
+            ? "In the gallery — click to remove"
+            : "Publish to the Sortly Quick gallery for the team to see and upvote"}
         </TooltipPopup>
       </Tooltip>
     </>
