@@ -65,7 +65,30 @@ function useNewThreadState() {
           ? getDraftThread(currentRouteTarget.threadRef)
           : getDraftSession(currentRouteTarget.draftId)
         : null;
-      if (storedDraftThread) {
+
+      // When the user explicitly asks for a new thread while already parked on
+      // this project's only pending draft (e.g. a freshly-created, still-empty
+      // Sortly Quick), reusing that draft short-circuits to a silent no-op and
+      // the New-thread button looks dead. If that draft has no unsent content,
+      // mint a fresh one so the action always opens a usable new thread. If it
+      // has content, keep reusing it so we never discard the user's work.
+      const currentDraftId =
+        currentRouteTarget?.kind === "draft" ? currentRouteTarget.draftId : null;
+      const isViewingStoredDraft =
+        storedDraftThread != null &&
+        currentDraftId != null &&
+        currentDraftId === storedDraftThread.draftId;
+      let forceFreshDraft = false;
+      if (isViewingStoredDraft && currentDraftId != null) {
+        const composerDraft = useComposerDraftStore.getState().getComposerDraft(currentDraftId);
+        forceFreshDraft =
+          composerDraft == null ||
+          ((composerDraft.prompt ?? "").trim().length === 0 &&
+            composerDraft.images.length === 0 &&
+            composerDraft.persistedAttachments.length === 0);
+      }
+
+      if (storedDraftThread && !forceFreshDraft) {
         return (async () => {
           if (hasBranchOption || hasWorktreePathOption || hasEnvModeOption) {
             setDraftThreadContext(storedDraftThread.draftId, {
@@ -91,6 +114,7 @@ function useNewThreadState() {
       }
 
       if (
+        !forceFreshDraft &&
         latestActiveDraftThread &&
         currentRouteTarget?.kind === "draft" &&
         latestActiveDraftThread.logicalProjectKey === logicalProjectKey &&
