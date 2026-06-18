@@ -115,7 +115,7 @@ export const ChatHeader = memo(function ChatHeader({
         >
           {activeThreadTitle}
         </h2>
-        {activeProjectName && (
+        {activeProjectName && !isQuick && (
           <Badge
             variant="outline"
             className="min-w-0 max-w-full shrink overflow-hidden sm:max-w-56"
