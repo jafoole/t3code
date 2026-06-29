@@ -135,6 +135,7 @@ export const ChatHeader = memo(function ChatHeader({
           openInCwd={openInCwd}
           threadEnvironmentId={activeThreadEnvironmentId}
           threadId={activeThreadId}
+          quickName={activeThreadTitle}
           {...(draftId ? { draftId } : {})}
         />
         {activeProjectScripts && !isQuick && (

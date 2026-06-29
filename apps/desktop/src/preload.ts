@@ -177,8 +177,8 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     ipcRenderer.invoke(IpcChannels.SORTLY_QUICK_CREATE_CHANNEL, { name }),
   sortlyQuickInfo: (workspaceRoot: string) =>
     ipcRenderer.invoke(IpcChannels.SORTLY_QUICK_INFO_CHANNEL, { workspaceRoot }),
-  sortlyQuickPublish: (workspaceRoot: string, publish: boolean) =>
-    ipcRenderer.invoke(IpcChannels.SORTLY_QUICK_PUBLISH_CHANNEL, { workspaceRoot, publish }),
+  sortlyQuickPublish: (workspaceRoot: string, publish: boolean, name?: string) =>
+    ipcRenderer.invoke(IpcChannels.SORTLY_QUICK_PUBLISH_CHANNEL, { workspaceRoot, publish, name }),
   onUpdateState: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, state: unknown) => {
       if (typeof state !== "object" || state === null) return;

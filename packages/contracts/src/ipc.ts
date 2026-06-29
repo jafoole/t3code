@@ -553,6 +553,7 @@ export interface DesktopBridge {
   sortlyQuickPublish: (
     workspaceRoot: string,
     publish: boolean,
+    name?: string,
   ) => Promise<SortlyQuickPublishResult>;
 }
 

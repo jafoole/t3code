@@ -42,6 +42,7 @@ const InfoResultSchema = Schema.NullOr(QuickInfoSchema);
 const PublishPayloadSchema = Schema.Struct({
   workspaceRoot: Schema.String,
   publish: Schema.Boolean,
+  name: Schema.optional(Schema.String),
 });
 const PublishResultSchema = Schema.Union([
   Schema.Struct({ ok: Schema.Literal(true), isPublic: Schema.Boolean }),
@@ -416,6 +417,7 @@ export const sortlyQuickInfo = makeIpcMethod({
 const doPublish = Effect.fn("desktop.ipc.sortlyQuick.doPublish")(function* (
   workspaceRoot: string,
   publish: boolean,
+  name?: string,
 ) {
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -437,9 +439,15 @@ const doPublish = Effect.fn("desktop.ipc.sortlyQuick.doPublish")(function* (
   if (!editToken) {
     return { error: "This Quick's manifest is missing its edit token." };
   }
+  // On publish, send the descriptive name so the gallery shows it instead of
+  // the auto "Quick — <date>" default. On unpublish (DELETE) we send no body.
+  const sendName = publish && typeof name === "string" && name.trim().length > 0;
   yield* fetchJson(`${SORTLY_QUICK_BASE_URL}/api/prototypes/${info.id}/publish`, {
     method: publish ? "POST" : "DELETE",
-    headers: { Authorization: `Bearer ${editToken}` },
+    headers: sendName
+      ? { Authorization: `Bearer ${editToken}`, "Content-Type": "application/json" }
+      : { Authorization: `Bearer ${editToken}` },
+    ...(sendName ? { body: JSON.stringify({ name }) } : {}),
   });
   return { ok: true as const, isPublic: publish };
 });
@@ -448,8 +456,12 @@ export const sortlyQuickPublish = makeIpcMethod({
   channel: IpcChannels.SORTLY_QUICK_PUBLISH_CHANNEL,
   payload: PublishPayloadSchema,
   result: PublishResultSchema,
-  handler: Effect.fn("desktop.ipc.sortlyQuick.publish")(function* ({ workspaceRoot, publish }) {
-    const result = yield* Effect.result(doPublish(workspaceRoot, publish));
+  handler: Effect.fn("desktop.ipc.sortlyQuick.publish")(function* ({
+    workspaceRoot,
+    publish,
+    name,
+  }) {
+    const result = yield* Effect.result(doPublish(workspaceRoot, publish, name));
     if (Result.isSuccess(result)) {
       return result.success;
     }

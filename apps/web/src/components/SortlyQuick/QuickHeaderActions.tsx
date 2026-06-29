@@ -24,6 +24,9 @@ interface QuickHeaderActionsProps {
   readonly threadEnvironmentId: EnvironmentId;
   readonly threadId: ThreadId;
   readonly draftId?: DraftId;
+  // The active thread's title — pushed to the gallery as the prototype's
+  // descriptive name on publish, so it shows that instead of "Quick — <date>".
+  readonly quickName?: string;
 }
 
 /**
@@ -38,6 +41,7 @@ export function QuickHeaderActions({
   threadEnvironmentId,
   threadId,
   draftId,
+  quickName,
 }: QuickHeaderActionsProps) {
   const isQuick = isSortlyQuickWorkspace(openInCwd);
   const [viewUrl, setViewUrl] = useState<string | null>(null);
@@ -97,7 +101,11 @@ export function QuickHeaderActions({
     if (!openInCwd || publishState === "working") return;
     const wantPublish = publishState !== "published";
     setPublishState("working");
-    const result = await window.desktopBridge?.sortlyQuickPublish?.(openInCwd, wantPublish);
+    const result = await window.desktopBridge?.sortlyQuickPublish?.(
+      openInCwd,
+      wantPublish,
+      quickName,
+    );
     if (!result || "error" in result) {
       setPublishState(wantPublish ? "idle" : "published");
       toastManager.add(
