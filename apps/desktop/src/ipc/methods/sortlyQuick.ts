@@ -109,32 +109,34 @@ When the user asks for a mobile app, a phone screen, an iOS/Android app, or show
 you a phone screenshot: design a **full, standard-size phone screen** — NEVER a
 cramped half-height card. This is the most common mistake; default to a full phone.
 
-- Use a standard iPhone canvas: a fixed **390 × 844** screen (\`w-[390px] h-[844px]\`),
-  centered on the board, rounded corners (\`rounded-[2.75rem]\`), white surface, a
-  subtle border + shadow, and an iOS status bar at the top (time on the left;
-  signal / wifi / battery on the right). This phone frame **is** the "surface that
-  sits on the board" from the rule above — it satisfies it; just make it a real,
-  full phone, not a small card.
-- Lay the app's content out to FILL the screen top-to-bottom: a header/title, the
-  main content (scrollable), and a bottom tab bar pinned to the bottom if the app
-  has one. Never leave the lower half of the phone empty.
-- Only use a partial screen or an isolated component if the user explicitly asks
-  for that (or for a non-phone device/size).
+**ALWAYS wrap the entire mobile design in the \`<PhoneScreen>\` DS component.** It
+is the standard 390 × 844 iPhone frame (status bar, scrollable body, optional
+bottom tab bar, home indicator) — do NOT hand-roll a card or a partial screen.
+The PhoneScreen frame **is** the discrete "surface that sits on the board" from
+the rule above, so it satisfies that rule; just make it a real, full phone.
 
-Skeleton to start from — keep the frame, replace the body with the real design:
+\`<PhoneScreen>\` props: \`children\` (the screen content — it fills the body and
+scrolls), \`bottomBar\` (a tab/nav bar pinned to the bottom), \`time\` (status-bar
+time, default "9:41"), \`hideStatusBar\`. Put the app's real content as children so
+it fills the screen top-to-bottom; if the app has a tab bar, pass it as \`bottomBar\`.
+
+Example — the design goes INSIDE PhoneScreen:
 \`\`\`jsx
-<div className="flex min-h-full w-full items-center justify-center p-8">
-  <div className="flex h-[844px] w-[390px] flex-col overflow-hidden rounded-[2.75rem] bg-white shadow-2xl ring-1 ring-grey-200">
-    <div className="flex items-center justify-between px-7 pt-4 pb-1 text-style-body-caption-accent text-grey-900">
-      <span>9:41</span>
-      <span>signal · wifi · battery</span>
+<PhoneScreen
+  bottomBar={
+    <div className="flex items-center justify-around py-2 text-style-body-caption text-grey-500">
+      {/* tab items */}
     </div>
-    <div className="flex-1 overflow-y-auto px-5 pb-5">
-      {/* The real app content goes here and fills the screen. */}
-    </div>
+  }
+>
+  <div className="flex flex-col gap-4 px-5 py-4">
+    {/* the real screen content fills the phone */}
   </div>
-</div>
+</PhoneScreen>
 \`\`\`
+
+Only use a partial screen or an isolated component if the user explicitly asks for
+that (or for a non-phone device/size).
 
 ## Color tokens — Sortly DS (use these EXACT class names; never guess hex)
 
