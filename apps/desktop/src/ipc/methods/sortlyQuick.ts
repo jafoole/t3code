@@ -117,8 +117,13 @@ the rule above, so it satisfies that rule; just make it a real, full phone.
 
 \`<PhoneScreen>\` props: \`children\` (the screen content — it fills the body and
 scrolls), \`bottomBar\` (a tab/nav bar pinned to the bottom), \`time\` (status-bar
-time, default "9:41"), \`hideStatusBar\`. Put the app's real content as children so
-it fills the screen top-to-bottom; if the app has a tab bar, pass it as \`bottomBar\`.
+time, default "9:41"), \`hideStatusBar\`, and \`background\` (a bg-* token for the
+WHOLE phone — status bar + body + home indicator share it, so they blend instead
+of reading as separate white bars; defaults to bg-grey-50). Put the app's real
+content as children so it fills the screen top-to-bottom; if the app has a tab
+bar, pass it as \`bottomBar\`. **Set the screen's background color via the
+\`background\` prop, NOT as a full-bleed bg on your content\`** — that keeps the
+status bar and home-indicator areas the same color as the screen.
 
 Example — the design goes INSIDE PhoneScreen:
 \`\`\`jsx
