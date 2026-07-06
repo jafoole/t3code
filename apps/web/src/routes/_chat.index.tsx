@@ -59,7 +59,7 @@ function HostedStaticOnboardingState() {
               </EmptyTitle>
               <EmptyDescription className="mt-2 text-sm leading-relaxed text-muted-foreground/78">
                 {cloudEnabled
-                  ? "Sign in to T3 Connect to connect a linked environment through its managed tunnel, or add a reachable backend manually."
+                  ? "Sign in to Pallet Connect to connect a linked environment through its managed tunnel, or add a reachable backend manually."
                   : "Open a pairing link from your Pallet desktop app or add a reachable backend manually. Your saved environments stay in this browser."}
               </EmptyDescription>
               <div className="mt-6 flex justify-center">

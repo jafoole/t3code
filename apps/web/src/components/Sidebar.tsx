@@ -2244,7 +2244,7 @@ const SidebarProjectListRow = memo(function SidebarProjectListRow(props: Sidebar
 function T3Wordmark() {
   return (
     <svg
-      aria-label="T3"
+      aria-label="Pallet"
       className="h-2.5 w-auto shrink-0 text-foreground"
       viewBox="15.5309 37 94.3941 56.96"
       xmlns="http://www.w3.org/2000/svg"

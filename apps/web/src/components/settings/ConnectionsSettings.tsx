@@ -1616,7 +1616,7 @@ function CloudLinkSwitch({
 }) {
   const control = (
     <Switch
-      aria-label="Enable T3 Connect"
+      aria-label="Enable Pallet Connect"
       checked={checked}
       disabled={disabled}
       {...(onCheckedChange ? { onCheckedChange } : {})}
@@ -1647,7 +1647,7 @@ function ConfiguredCloudLinkRow({ canManageRelay }: { readonly canManageRelay: b
       const clerkToken = await getToken(resolveRelayClerkTokenOptions());
       if (enabled) {
         if (!clerkToken) {
-          throw new Error("Sign in to T3 Connect before linking this environment.");
+          throw new Error("Sign in to Pallet Connect before linking this environment.");
         }
         await webRuntime.runPromise(linkPrimaryEnvironmentToCloud({ clerkToken }));
       } else {
@@ -1659,18 +1659,18 @@ function ConfiguredCloudLinkRow({ canManageRelay }: { readonly canManageRelay: b
       refreshManagedRelayEnvironments();
       toastManager.add({
         type: "success",
-        title: enabled ? "T3 Connect linked" : "T3 Connect unlinked",
+        title: enabled ? "Pallet Connect linked" : "Pallet Connect unlinked",
         description: enabled
-          ? "This environment is available through T3 Connect."
-          : "This environment is no longer available through T3 Connect.",
+          ? "This environment is available through Pallet Connect."
+          : "This environment is no longer available through Pallet Connect.",
       });
     } catch (cause) {
       const message =
-        cause instanceof Error ? cause.message : "Could not update T3 Connect access.";
+        cause instanceof Error ? cause.message : "Could not update Pallet Connect access.";
       setOperationError(message);
       toastManager.add({
         type: "error",
-        title: "Could not update T3 Connect",
+        title: "Could not update Pallet Connect",
         description: message,
       });
     } finally {
@@ -1692,7 +1692,7 @@ function ConfiguredCloudLinkRow({ canManageRelay }: { readonly canManageRelay: b
     } catch (cause) {
       toastManager.add({
         type: "error",
-        title: "Could not update T3 Connect preferences",
+        title: "Could not update Pallet Connect preferences",
         description:
           cause instanceof Error ? cause.message : "Could not update agent activity publishing.",
       });
@@ -1701,20 +1701,20 @@ function ConfiguredCloudLinkRow({ canManageRelay }: { readonly canManageRelay: b
     }
   };
   const disabledReason = !isSignedIn
-    ? "Sign in to T3 Connect"
+    ? "Sign in to Pallet Connect"
     : !canManageRelay
-      ? "Your session does not have permission to manage T3 Connect access."
+      ? "Your session does not have permission to manage Pallet Connect access."
       : null;
   const linked = primaryCloudLinkState.data?.linked ?? false;
 
   return (
     <>
       <SettingsRow
-        title="T3 Connect"
+        title="Pallet Connect"
         description={
           linked
-            ? "This environment is available to your other devices through T3 Connect."
-            : "Make this environment available to your other devices through T3 Connect."
+            ? "This environment is available to your other devices through Pallet Connect."
+            : "Make this environment available to your other devices through Pallet Connect."
         }
         status={operationError ?? primaryCloudLinkState.error}
         control={
@@ -1788,10 +1788,10 @@ function EmptyRemoteEnvironments({
                   className="border-b border-dotted border-current text-foreground/80 hover:text-foreground"
                   onClick={onConnectFromCloud}
                 >
-                  T3 Connect
+                  Pallet Connect
                 </button>
               ) : (
-                "T3 Connect"
+                "Pallet Connect"
               )}
             </>
           ) : null}
@@ -1836,7 +1836,7 @@ function ConfiguredCloudRemoteEnvironmentRows({
     try {
       const clerkToken = await getToken(resolveRelayClerkTokenOptions());
       if (!clerkToken) {
-        throw new Error("Sign in to T3 Connect before connecting this environment.");
+        throw new Error("Sign in to Pallet Connect before connecting this environment.");
       }
       const connection = await webRuntime.runPromise(
         connectManagedCloudEnvironment({ clerkToken, environment }),
@@ -1845,14 +1845,14 @@ function ConfiguredCloudRemoteEnvironmentRows({
       toastManager.add({
         type: "success",
         title: "Environment connected",
-        description: `${connection.label} is available through T3 Connect.`,
+        description: `${connection.label} is available through Pallet Connect.`,
       });
     } catch (cause) {
       toastManager.add({
         type: "error",
         title: "Could not connect environment",
         description:
-          cause instanceof Error ? cause.message : "Could not connect the T3 Connect environment.",
+          cause instanceof Error ? cause.message : "Could not connect the Pallet Connect environment.",
       });
     } finally {
       setConnectingEnvironmentId(null);
@@ -1885,11 +1885,11 @@ function ConfiguredCloudRemoteEnvironmentRows({
           <div className="flex items-center gap-2">
             <ConnectionStatusDot
               dotClassName="bg-muted-foreground/35"
-              tooltipText="Available through T3 Connect"
+              tooltipText="Available through Pallet Connect"
             />
             <p className="truncate text-sm font-medium">{environment.label}</p>
           </div>
-          <p className="mt-1 truncate text-xs text-muted-foreground">T3 Connect</p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">Pallet Connect</p>
         </div>
         <Button
           size="sm"
