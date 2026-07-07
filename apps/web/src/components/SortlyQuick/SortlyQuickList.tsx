@@ -146,15 +146,14 @@ function SortlyQuickRow({
     // Quick is even more destructive (server prototype + gallery entry +
     // workspace), so ask first unless the user turned confirmations off.
     if (confirmThreadDelete) {
+      const message = [
+        `Delete "${displayName}"?`,
+        "This deletes the Quick everywhere — its prototype on the server, its gallery entry, and the local workspace.",
+      ].join("\n");
       const localApi = readLocalApi();
-      const confirmed = localApi
-        ? await localApi.dialogs.confirm(
-            [
-              `Delete "${displayName}"?`,
-              "This deletes the Quick everywhere — its prototype on the server, its gallery entry, and the local workspace.",
-            ].join("\n"),
-          )
-        : true;
+      // If the local API isn't available, fall back to window.confirm — an
+      // enabled confirmation must never be silently skipped.
+      const confirmed = localApi ? await localApi.dialogs.confirm(message) : window.confirm(message);
       if (!confirmed) {
         return;
       }
@@ -242,6 +241,17 @@ function SortlyQuickRow({
           threadId: newestThread.id,
           title: next,
         });
+        // If the Quick is published, best-effort sync the new name to the
+        // gallery (the publish POST is idempotent and patches the name
+        // server-side). Failures are swallowed — the rename itself succeeded.
+        try {
+          const state = await window.desktopBridge?.sortlyQuickPublishState?.(quick.cwd);
+          if (state?.isPublic) {
+            await window.desktopBridge?.sortlyQuickPublish?.(quick.cwd, true, next);
+          }
+        } catch {
+          // Best-effort only — never surface gallery sync failures on rename.
+        }
       } else if (primaryRef) {
         const api = readEnvironmentApi(primaryRef.environmentId);
         if (!api) return;
