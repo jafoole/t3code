@@ -24,7 +24,11 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 export function SidebarUpdatePill() {
   const queryClient = useQueryClient();
   const state = useDesktopUpdateState().data ?? null;
-  const [dismissed, setDismissed] = useState(false);
+  // Dismissal is keyed by the version it dismissed, not a boolean — if a NEWER
+  // update becomes available in the same session, the pill re-shows for it.
+  const [dismissedVersion, setDismissedVersion] = useState<string | null>(null);
+  const availableVersionKey = state?.availableVersion ?? state?.downloadedVersion ?? "unknown";
+  const dismissed = dismissedVersion === availableVersionKey;
 
   const visible = isElectron && shouldShowDesktopUpdateButton(state) && !dismissed;
   const tooltip = state ? getDesktopUpdateButtonTooltip(state) : "Update available";
@@ -168,7 +172,7 @@ export function SidebarUpdatePill() {
                     type="button"
                     aria-label="Dismiss update"
                     className="mr-1 inline-flex size-5 items-center justify-center rounded-md text-primary/60 transition-colors hover:text-primary"
-                    onClick={() => setDismissed(true)}
+                    onClick={() => setDismissedVersion(availableVersionKey)}
                   >
                     <XIcon className="size-3.5" />
                   </button>

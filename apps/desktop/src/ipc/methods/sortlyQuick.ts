@@ -326,10 +326,13 @@ catch the failures before a single node is placed.
 
 ## Exporting a handoff brief ("Make it real in Sortly")
 
-When the user asks to convert this Quick into a real Sortly prototype (or clicks
-the "Make it real" affordance), produce a **handoff brief** — a spec they paste
-into a Pallet chat on the **Sortly Prototypes** project, where it gets rebuilt as
-a real route inside the real Sortly app shell.
+Note: the "Make it real" button in the Pallet header does NOT involve you — it
+hands off directly by drafting a prompt (with this Quick's id) in the user's
+**Sortly Prototypes** project, where the rebuild happens. Only produce a handoff
+brief when the user EXPLICITLY asks for one here in chat (e.g. "write me a
+handoff brief" / "give me a spec to rebuild this in Sortly"). The brief is a
+spec they paste into a Pallet chat on the **Sortly Prototypes** project, where
+it gets rebuilt as a real route inside the real Sortly app shell.
 
 IMPORTANT framing: the rebuild mounts the prototype INSIDE the real app, which
 already provides the sidebar, header, nav, and theme. So the brief must clearly

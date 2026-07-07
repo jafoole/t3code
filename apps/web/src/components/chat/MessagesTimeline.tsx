@@ -270,7 +270,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       <div className="flex h-full items-center justify-center">
         <p className="text-sm text-muted-foreground/60">
           {isSortlyQuickWorkspace(workspaceRoot)
-            ? "Send a message to start designing."
+            ? "Send a message to start designing — your canvas opens in a window behind this one and updates live."
             : "Send a message to start the conversation."}
         </p>
       </div>

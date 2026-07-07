@@ -38,6 +38,7 @@ import {
   replaceTextRange,
 } from "../../composer-logic";
 import { deriveComposerSendState, readFileAsDataUrl } from "../ChatView.logic";
+import { isSortlyQuickWorkspace } from "../SortlyQuick/createSortlyQuick";
 import {
   type ComposerImageAttachment,
   type DraftId,
@@ -2255,7 +2256,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                             }`
                           : phase === "disconnected"
                             ? "Ask for follow-up changes or attach images"
-                            : "Ask anything, @tag files/folders, $use skills, or / for commands"
+                            : isSortlyQuickWorkspace(gitCwd)
+                              ? "Describe what you want to build or change…"
+                              : "Ask anything, @tag files/folders, $use skills, or / for commands"
                 }
                 disabled={
                   isConnecting ||
