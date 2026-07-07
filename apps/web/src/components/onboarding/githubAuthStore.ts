@@ -7,6 +7,7 @@ import { getPrimaryEnvironmentConnection } from "../../environments/runtime";
 import { selectProjectsAcrossEnvironments, useStore } from "../../store";
 import { findProjectByPath } from "../../lib/projectPaths";
 import { newCommandId, newProjectId } from "../../lib/utils";
+import { stackedThreadToast, toastManager } from "../ui/toast";
 
 export type GithubAuthStatus =
   | "loading"
@@ -236,13 +237,32 @@ export const useGithubAuthStore = create<GithubAuthState>()((set) => ({
 
       if (storedState.token) {
         set({ status: "signed-in", user: storedState.user ?? undefined });
+        // Relaunch bootstrap runs in the background; a failure must not knock
+        // the user out of the signed-in state, but it shouldn't be silent
+        // either — surface it as a toast so a broken clone/pull is visible.
+        const reportBootstrapError = (description: string) => {
+          toastManager.add(
+            stackedThreadToast({
+              type: "error",
+              title: "Couldn't prepare Sortly Prototypes",
+              description,
+            }),
+          );
+        };
         void bridge
           .githubBootstrapProject()
           .then((result) => {
-            if ("error" in result) return;
+            if ("error" in result) {
+              reportBootstrapError(result.error);
+              return;
+            }
             void ensureSortlyProject(result.path).catch(() => undefined);
           })
-          .catch(() => undefined);
+          .catch((cause: unknown) => {
+            reportBootstrapError(
+              cause instanceof Error ? cause.message : "Please try again.",
+            );
+          });
         return;
       }
 
