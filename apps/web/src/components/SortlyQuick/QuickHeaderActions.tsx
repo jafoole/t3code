@@ -1,13 +1,24 @@
 import {
   type EnvironmentId,
+  type SortlyQuickInfo,
   type SortlyQuickPublishResult,
   type ThreadId,
 } from "@t3tools/contracts";
-import { scopeThreadRef } from "@t3tools/client-runtime";
+import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime";
 import { useEffect, useState } from "react";
-import { CheckIcon, ChevronDownIcon, FigmaIcon, GlobeIcon, Share2Icon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  FigmaIcon,
+  GlobeIcon,
+  Share2Icon,
+  SparklesIcon,
+} from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 
 import { useComposerDraftStore, type DraftId } from "~/composerDraftStore";
+import { useNewThreadHandler } from "../../hooks/useHandleNewThread";
+import { selectProjectsAcrossEnvironments, useStore } from "../../store";
 import { Button } from "../ui/button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -22,6 +33,17 @@ const SEND_TO_FIGMA_PROMPT =
   "Send this design to Figma — rebuild it as a frame using the Pallet DS (web) components, then give me the Figma link.";
 const UPDATE_FROM_FIGMA_PROMPT =
   "Update this prototype from my Figma changes. Frame URL: <paste the Figma frame link here>";
+
+// The GitHub-bootstrap dirName for the Sortly Prototypes project (see
+// apps/desktop/src/ipc/methods/projectBootstrap.ts BOOTSTRAP_REPOS) — "Make it
+// real" hands the Quick off to whichever project lives in that directory.
+const PROTOTYPES_CWD_SUFFIX = "/Sortly Prototypes";
+
+// Builds the ready-to-send handoff prompt. The trailing placeholder is meant
+// to be edited by the user before sending.
+function makeItRealPrompt(name: string, quickId: string): string {
+  return `Make this Sortly Quick real: bring "${name}" (Quick id ${quickId}) into this app as a real route, following the "Make it real" recipe in CLAUDE.md and docs/make-it-real.md. Run git pull first so the pipeline components are present. Put it: <describe where — e.g. "a new page called Warehouse Overview" or "on the Items page, under the header">`;
+}
 
 interface QuickHeaderActionsProps {
   readonly openInCwd: string | null;
@@ -48,7 +70,7 @@ export function QuickHeaderActions({
   quickName,
 }: QuickHeaderActionsProps) {
   const isQuick = isSortlyQuickWorkspace(openInCwd);
-  const [viewUrl, setViewUrl] = useState<string | null>(null);
+  const [quickInfo, setQuickInfo] = useState<SortlyQuickInfo | null>(null);
   // Distinguishes "still fetching the share link" from "fetch finished and
   // there is no link" so the Share tooltip can say the right thing.
   const [shareInfoSettled, setShareInfoSettled] = useState(false);
@@ -56,12 +78,17 @@ export function QuickHeaderActions({
   // let the server's answer (fetched below) correct it — publishing is
   // idempotent, so an optimistic "idle" is harmless if that fetch fails.
   const [publishState, setPublishState] = useState<"idle" | "working" | "published">("idle");
+  // Guards "Make it real" against double-clicks while it resolves the target
+  // project and navigates away.
+  const [makeItRealWorking, setMakeItRealWorking] = useState(false);
+  const projects = useStore(useShallow((store) => selectProjectsAcrossEnvironments(store)));
+  const { handleNewThread } = useNewThreadHandler();
 
   useEffect(() => {
     setShareInfoSettled(false);
     setPublishState("idle");
     if (!isQuick || !openInCwd) {
-      setViewUrl(null);
+      setQuickInfo(null);
       return;
     }
     let cancelled = false;
@@ -69,13 +96,13 @@ export function QuickHeaderActions({
       ?.(openInCwd)
       .then((info) => {
         if (!cancelled) {
-          setViewUrl(info?.viewUrl ?? null);
+          setQuickInfo(info ?? null);
           setShareInfoSettled(true);
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setViewUrl(null);
+          setQuickInfo(null);
           setShareInfoSettled(true);
         }
       });
@@ -94,6 +121,7 @@ export function QuickHeaderActions({
 
   if (!isQuick) return null;
 
+  const viewUrl = quickInfo?.viewUrl ?? null;
   const target = draftId ?? scopeThreadRef(threadEnvironmentId, threadId);
 
   const injectPrompt = (text: string) => {
@@ -101,6 +129,70 @@ export function QuickHeaderActions({
     const current = store.getComposerDraft(target)?.prompt ?? "";
     const next = current.trim().length > 0 ? `${current.trim()}\n\n${text}` : text;
     store.setPrompt(target, next);
+  };
+
+  const handleMakeItReal = async () => {
+    if (!quickInfo || makeItRealWorking) return;
+    setMakeItRealWorking(true);
+    try {
+      const prototypesProject = projects.find((project) =>
+        project.cwd.endsWith(PROTOTYPES_CWD_SUFFIX),
+      );
+      if (!prototypesProject) {
+        toastManager.add(
+          stackedThreadToast({
+            type: "error",
+            title: "Sortly Prototypes project not found",
+            description: "It's created automatically when you sign in with GitHub.",
+          }),
+        );
+        return;
+      }
+      // A not-yet-sent Quick (draft) has only the placeholder thread title
+      // ("New thread") — use the Quick's own name in that case, mirroring the
+      // Publish naming rule above.
+      const name = !draftId && quickName ? quickName : quickInfo.name;
+      const projectRef = scopeProjectRef(prototypesProject.environmentId, prototypesProject.id);
+      // Navigates to the Prototypes project's draft thread (creating one if
+      // needed) — handleNewThread registers the draft in the store before it
+      // navigates, so it's resolvable right after this await.
+      await handleNewThread(projectRef, { envMode: "local" });
+      const store = useComposerDraftStore.getState();
+      let session = store.getDraftSessionByProjectRef(projectRef);
+      if (!session) {
+        // Shouldn't happen (registration is synchronous), but if the store
+        // hasn't settled yet, retry once on the next tick before giving up.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        session = useComposerDraftStore.getState().getDraftSessionByProjectRef(projectRef);
+      }
+      if (!session) {
+        toastManager.add(
+          stackedThreadToast({
+            type: "error",
+            title: "Couldn't prepare the handoff",
+            description: "Please try again.",
+          }),
+        );
+        return;
+      }
+      // Same append-don't-clobber behavior as injectPrompt, but aimed at the
+      // Prototypes project's draft instead of the current thread's composer.
+      const draftStore = useComposerDraftStore.getState();
+      const current = draftStore.getComposerDraft(session.draftId)?.prompt ?? "";
+      const text = makeItRealPrompt(name, quickInfo.id);
+      const next = current.trim().length > 0 ? `${current.trim()}\n\n${text}` : text;
+      draftStore.setPrompt(session.draftId, next);
+    } catch {
+      toastManager.add(
+        stackedThreadToast({
+          type: "error",
+          title: "Couldn't open Sortly Prototypes",
+          description: "Please try again.",
+        }),
+      );
+    } finally {
+      setMakeItRealWorking(false);
+    }
   };
 
   const handleShare = async () => {
@@ -250,6 +342,30 @@ export function QuickHeaderActions({
           {publishState === "published"
             ? "In the gallery — click to remove"
             : "Publish to the Sortly Quick gallery for the team to see and upvote"}
+        </TooltipPopup>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              className="shrink-0"
+              variant="outline"
+              size="xs"
+              aria-label="Make it real — bring this design into the real Sortly app"
+              disabled={!quickInfo || makeItRealWorking}
+              onClick={handleMakeItReal}
+            >
+              <SparklesIcon className="size-3" />
+              <span className="ml-1 hidden @lg/header-actions:inline">Make it real</span>
+            </Button>
+          }
+        />
+        <TooltipPopup side="bottom">
+          {quickInfo
+            ? "Bring this design into the real Sortly app (Sortly Prototypes)"
+            : shareInfoSettled
+              ? "Make it real unavailable"
+              : "Preparing…"}
         </TooltipPopup>
       </Tooltip>
     </>
