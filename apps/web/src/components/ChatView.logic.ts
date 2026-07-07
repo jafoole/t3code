@@ -23,6 +23,12 @@ import type { DraftThreadEnvMode } from "../composerDraftStore";
 export const LAST_INVOKED_SCRIPT_BY_PROJECT_KEY = "t3code:last-invoked-script-by-project";
 export const MAX_HIDDEN_MOUNTED_TERMINAL_THREADS = 10;
 
+// Placeholder title for threads that haven't been named yet (draft threads and
+// server threads before the first turn seeds a real title). Consumers that
+// surface thread titles externally (e.g. Quick gallery publish) must not send
+// this literal as if it were a user-chosen name.
+export const NEW_THREAD_PLACEHOLDER_TITLE = "New thread";
+
 export const LastInvokedScriptByProjectSchema = Schema.Record(ProjectId, Schema.String);
 
 export function buildLocalDraftThread(
@@ -36,7 +42,7 @@ export function buildLocalDraftThread(
     environmentId: draftThread.environmentId,
     codexThreadId: null,
     projectId: draftThread.projectId,
-    title: "New thread",
+    title: NEW_THREAD_PLACEHOLDER_TITLE,
     modelSelection: fallbackModelSelection,
     runtimeMode: draftThread.runtimeMode,
     interactionMode: draftThread.interactionMode,

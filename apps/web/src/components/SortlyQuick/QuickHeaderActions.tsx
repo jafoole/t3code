@@ -18,6 +18,7 @@ import { useShallow } from "zustand/react/shallow";
 
 import { useComposerDraftStore, type DraftId } from "~/composerDraftStore";
 import { useNewThreadHandler } from "../../hooks/useHandleNewThread";
+import { NEW_THREAD_PLACEHOLDER_TITLE } from "../ChatView.logic";
 import { selectProjectsAcrossEnvironments, useStore } from "../../store";
 import { Button } from "../ui/button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
@@ -80,7 +81,12 @@ export function QuickHeaderActions({
   // The local manifest doesn't track published state, so start at "idle" and
   // let the server's answer (fetched below) correct it — publishing is
   // idempotent, so an optimistic "idle" is harmless if that fetch fails.
-  const [publishState, setPublishState] = useState<"idle" | "working" | "published">("idle");
+  // "publishing" / "unpublishing" are tracked separately so the in-flight
+  // label matches the direction ("Publishing…" vs "Removing…").
+  const [publishState, setPublishState] = useState<
+    "idle" | "publishing" | "unpublishing" | "published"
+  >("idle");
+  const publishWorking = publishState === "publishing" || publishState === "unpublishing";
   // Guards "Make it real" against double-clicks while it resolves the target
   // project and navigates away.
   const [makeItRealWorking, setMakeItRealWorking] = useState(false);
@@ -95,20 +101,30 @@ export function QuickHeaderActions({
       return;
     }
     let cancelled = false;
-    void window.desktopBridge?.sortlyQuickInfo
-      ?.(openInCwd)
-      .then((info) => {
-        if (!cancelled) {
-          setQuickInfo(info ?? null);
-          setShareInfoSettled(true);
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    // Fetches the Quick's info; on a null/failed first attempt, schedules ONE
+    // retry ~2s later (the manifest can be briefly unreadable right after
+    // creation or app start) before settling on "unavailable".
+    const fetchInfo = (isRetry: boolean) => {
+      const scheduleRetryOrSettle = (info: SortlyQuickInfo | null) => {
+        if (cancelled) return;
+        if (!info && !isRetry) {
+          retryTimer = setTimeout(() => fetchInfo(true), 2000);
+          return;
         }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setQuickInfo(null);
-          setShareInfoSettled(true);
-        }
-      });
+        setQuickInfo(info);
+        setShareInfoSettled(true);
+      };
+      const request = window.desktopBridge?.sortlyQuickInfo?.(openInCwd);
+      if (!request) {
+        scheduleRetryOrSettle(null);
+        return;
+      }
+      void request
+        .then((info) => scheduleRetryOrSettle(info ?? null))
+        .catch(() => scheduleRetryOrSettle(null));
+    };
+    fetchInfo(false);
     // Seed the Publish button from the server's actual state; null (endpoint
     // missing, offline, 404) keeps the optimistic "idle" default.
     void window.desktopBridge?.sortlyQuickPublishState
@@ -119,6 +135,7 @@ export function QuickHeaderActions({
       .catch(() => undefined);
     return () => {
       cancelled = true;
+      if (retryTimer !== null) clearTimeout(retryTimer);
     };
   }, [isQuick, openInCwd]);
 
@@ -146,15 +163,19 @@ export function QuickHeaderActions({
           stackedThreadToast({
             type: "error",
             title: "Sortly Prototypes project not found",
-            description: "It's created automatically when you sign in with GitHub.",
+            description:
+              "Add it back with Add Project → choose your 'Sortly Prototypes' folder (in your home directory).",
           }),
         );
         return;
       }
       // A not-yet-sent Quick (draft) has only the placeholder thread title
       // ("New thread") — use the Quick's own name in that case, mirroring the
-      // Publish naming rule above.
-      const name = !draftId && quickName ? quickName : quickInfo.name;
+      // Publish naming rule below.
+      const name =
+        !draftId && quickName && quickName.trim() !== NEW_THREAD_PLACEHOLDER_TITLE
+          ? quickName
+          : quickInfo.name;
       const projectRef = scopeProjectRef(prototypesProject.environmentId, prototypesProject.id);
       // Navigates to the Prototypes project's draft thread (creating one if
       // needed) — handleNewThread registers the draft in the store before it
@@ -221,13 +242,17 @@ export function QuickHeaderActions({
   };
 
   const handlePublish = async () => {
-    if (!openInCwd || publishState === "working") return;
+    if (!openInCwd || publishWorking) return;
     const wantPublish = publishState !== "published";
-    setPublishState("working");
+    setPublishState(wantPublish ? "publishing" : "unpublishing");
     // A not-yet-sent Quick (draft) has only the placeholder thread title
-    // ("New thread") — publish without a name so the gallery keeps the
-    // Quick's own name instead.
-    const publishName = draftId ? undefined : quickName;
+    // ("New thread") — and a sent thread can still carry that placeholder
+    // before its first turn seeds a real title. Publish without a name in
+    // both cases so the gallery keeps the Quick's own name instead.
+    const publishName =
+      !draftId && quickName && quickName.trim() !== NEW_THREAD_PLACEHOLDER_TITLE
+        ? quickName
+        : undefined;
     let result: SortlyQuickPublishResult | undefined;
     try {
       result = await window.desktopBridge?.sortlyQuickPublish?.(
@@ -285,7 +310,7 @@ export function QuickHeaderActions({
           {viewUrl
             ? "Copy a view-only link to share for feedback"
             : shareInfoSettled
-              ? "Share link unavailable"
+              ? "Couldn't load this Quick's info — reopen the thread to retry."
               : "Preparing share link…"}
         </TooltipPopup>
       </Tooltip>
@@ -323,7 +348,7 @@ export function QuickHeaderActions({
                   ? "Published to the gallery — click to remove"
                   : "Publish to the Sortly Quick gallery"
               }
-              disabled={publishState === "working"}
+              disabled={publishWorking}
               onClick={handlePublish}
             >
               {publishState === "published" ? (
@@ -334,9 +359,11 @@ export function QuickHeaderActions({
               <span className="ml-1 hidden @lg/header-actions:inline">
                 {publishState === "published"
                   ? "Published"
-                  : publishState === "working"
+                  : publishState === "publishing"
                     ? "Publishing…"
-                    : "Publish"}
+                    : publishState === "unpublishing"
+                      ? "Removing…"
+                      : "Publish"}
               </span>
             </Button>
           }
@@ -367,7 +394,7 @@ export function QuickHeaderActions({
           {quickInfo
             ? "Bring this design into the real Sortly app (Sortly Prototypes)"
             : shareInfoSettled
-              ? "Make it real unavailable"
+              ? "Couldn't load this Quick's info — reopen the thread to retry."
               : "Preparing…"}
         </TooltipPopup>
       </Tooltip>
