@@ -8,6 +8,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useComposerDraftStore } from "../../composerDraftStore";
 import { readEnvironmentApi } from "../../environmentApi";
 import type { useNewThreadHandler } from "../../hooks/useHandleNewThread";
+import { useSettings } from "../../hooks/useSettings";
 import { newCommandId } from "../../lib/utils";
 import { readLocalApi } from "../../localApi";
 import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
@@ -112,6 +113,7 @@ function SortlyQuickRow({
   // an unsent (empty) Quick that has no thread yet.
   const displayName = newestThread?.title?.trim() || quick.name;
   const [draftName, setDraftName] = useState(displayName);
+  const confirmThreadDelete = useSettings((settings) => settings.confirmThreadDelete);
 
   // Open the Quick's single conversation: its newest live thread, or its
   // pending draft if it hasn't been sent yet, or a fresh thread as a fallback.
@@ -139,6 +141,23 @@ function SortlyQuickRow({
   const removeQuick = async () => {
     if (!primaryRef) {
       return;
+    }
+    // Honor the same "Delete confirmation" setting threads use — deleting a
+    // Quick is even more destructive (server prototype + gallery entry +
+    // workspace), so ask first unless the user turned confirmations off.
+    if (confirmThreadDelete) {
+      const localApi = readLocalApi();
+      const confirmed = localApi
+        ? await localApi.dialogs.confirm(
+            [
+              `Delete "${displayName}"?`,
+              "This deletes the Quick everywhere — its prototype on the server, its gallery entry, and the local workspace.",
+            ].join("\n"),
+          )
+        : true;
+      if (!confirmed) {
+        return;
+      }
     }
     // Delete everywhere first: the server prototype (which also pulls it from
     // the gallery) and the local workspace folder — the snapshot's cwd is the
