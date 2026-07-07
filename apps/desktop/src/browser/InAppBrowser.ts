@@ -23,6 +23,7 @@ export interface InAppBrowserShape {
     url: string,
     options?: { readonly focus?: boolean },
   ) => Effect.Effect<void>;
+  readonly focusPopout: Effect.Effect<void>;
 }
 
 export class InAppBrowser extends Context.Service<InAppBrowser, InAppBrowserShape>()(
@@ -501,6 +502,22 @@ const make = Effect.gen(function* () {
           ),
         );
       }),
+
+    // Bring an existing pop-out window to the front (show + focus). Used when a
+    // Sortly Quick build finishes so the user knows to look at the canvas that
+    // was opened behind the main window. No-op if there is no live pop-out.
+    focusPopout: Effect.gen(function* () {
+      const current = yield* Ref.get(popoutRef);
+      if (Option.isNone(current) || current.value.window.isDestroyed()) return;
+      const win = current.value.window;
+      try {
+        if (!win.isVisible()) win.show();
+        win.moveTop();
+        win.focus();
+      } catch (cause) {
+        yield* logWarning("focusPopout failed", { cause: String(cause) });
+      }
+    }),
   });
 });
 

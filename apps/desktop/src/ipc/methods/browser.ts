@@ -80,3 +80,13 @@ export const browserOpenPopout = makeIpcMethod({
     yield* browser.openPopout(url, focus === undefined ? undefined : { focus });
   }),
 });
+
+export const browserFocusPopout = makeIpcMethod({
+  channel: IpcChannels.BROWSER_FOCUS_POPOUT_CHANNEL,
+  payload: Schema.Void,
+  result: Schema.Void,
+  handler: Effect.fn("desktop.ipc.browser.focusPopout")(function* () {
+    const browser = yield* InAppBrowser.InAppBrowser;
+    yield* browser.focusPopout;
+  }),
+});

@@ -534,6 +534,7 @@ export interface DesktopBridge {
   browserForward: () => Promise<void>;
   browserReload: () => Promise<void>;
   browserOpenPopout: (url: string, options?: BrowserOpenPopoutOptions) => Promise<void>;
+  browserFocusPopout: () => Promise<void>;
   onBrowserState: (listener: (state: BrowserNavigationState) => void) => () => void;
   onExternalLinkRequest: (listener: (url: string) => void) => () => void;
   createCloudAuthRequest: () => Promise<string>;

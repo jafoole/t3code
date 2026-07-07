@@ -242,6 +242,7 @@ function makeDesktopBridge(overrides: Partial<DesktopBridge> = {}): DesktopBridg
     browserForward: async () => undefined,
     browserReload: async () => undefined,
     browserOpenPopout: async () => undefined,
+    browserFocusPopout: async () => undefined,
     onBrowserState: () => () => undefined,
     onExternalLinkRequest: () => () => undefined,
     createCloudAuthRequest: async () => "t3code-dev://auth/callback?t3_state=test",

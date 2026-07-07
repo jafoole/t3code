@@ -471,6 +471,7 @@ const createDesktopBridgeStub = (overrides?: {
     browserForward: vi.fn().mockResolvedValue(undefined),
     browserReload: vi.fn().mockResolvedValue(undefined),
     browserOpenPopout: vi.fn().mockResolvedValue(undefined),
+    browserFocusPopout: vi.fn().mockResolvedValue(undefined),
     onBrowserState: () => () => {},
     onExternalLinkRequest: () => () => {},
     createCloudAuthRequest: vi.fn().mockResolvedValue("t3code-dev://auth/callback?t3_state=test"),

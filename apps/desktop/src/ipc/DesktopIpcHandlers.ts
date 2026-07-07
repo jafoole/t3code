@@ -50,6 +50,7 @@ import {
 } from "./methods/window.ts";
 import {
   browserBack,
+  browserFocusPopout,
   browserForward,
   browserHide,
   browserNavigate,
@@ -113,6 +114,7 @@ export const installDesktopIpcHandlers = Effect.gen(function* () {
   yield* ipc.handle(browserForward);
   yield* ipc.handle(browserReload);
   yield* ipc.handle(browserOpenPopout);
+  yield* ipc.handle(browserFocusPopout);
 
   yield* ipc.handle(createCloudAuthRequest);
   yield* ipc.handle(getCloudAuthToken);

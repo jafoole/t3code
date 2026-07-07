@@ -110,6 +110,7 @@ contextBridge.exposeInMainWorld("desktopBridge", {
       url,
       ...(options?.focus === undefined ? {} : { focus: options.focus }),
     }),
+  browserFocusPopout: () => ipcRenderer.invoke(IpcChannels.BROWSER_FOCUS_POPOUT_CHANNEL),
   onBrowserState: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, state: unknown) => {
       if (typeof state !== "object" || state === null) return;

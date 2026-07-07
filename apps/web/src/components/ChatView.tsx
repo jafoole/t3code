@@ -151,6 +151,7 @@ import { MessagesTimeline } from "./chat/MessagesTimeline";
 import { ChatHeader } from "./chat/ChatHeader";
 import { useBrowserPanelStore } from "./Browser/browserPanelStore";
 import { isSortlyQuickWorkspace } from "./SortlyQuick/createSortlyQuick";
+import { useQuickBuildPopout } from "./SortlyQuick/useQuickBuildPopout";
 import { openPreviewPopout } from "./Browser/openPreview";
 import { type ExpandedImagePreview } from "./chat/ExpandedImagePreview";
 import { NoActiveThreadState } from "./NoActiveThreadState";
@@ -1590,6 +1591,15 @@ export default function ChatView(props: ChatViewProps) {
     threadError: activeThread?.error,
   });
   const isWorking = phase === "running" || isSendBusy || isConnecting || isRevertingCheckpoint;
+
+  // Sortly Quick: surface the canvas pop-out (opened behind Pallet at
+  // creation) once the first agent turn in this thread completes.
+  useQuickBuildPopout({
+    workspaceRoot: activeQuickRoot,
+    threadKey: activeThreadKey,
+    isWorking,
+    hasCompletedTurn: activeLatestTurn !== null && latestTurnSettled,
+  });
   const activeWorkStartedAt = deriveActiveWorkStartedAt(
     activeLatestTurn,
     activeThread?.session ?? null,

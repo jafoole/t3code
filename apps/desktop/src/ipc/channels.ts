@@ -50,6 +50,7 @@ export const BROWSER_RELOAD_CHANNEL = "desktop:browser-reload";
 export const BROWSER_STATE_CHANNEL = "desktop:browser-state";
 export const BROWSER_EXTERNAL_LINK_CHANNEL = "desktop:browser-external-link";
 export const BROWSER_OPEN_POPOUT_CHANNEL = "desktop:browser-open-popout";
+export const BROWSER_FOCUS_POPOUT_CHANNEL = "desktop:browser-focus-popout";
 // Pop-out window chrome: toolbar renderer <-> main process.
 export const POPOUT_NAV_CHANNEL = "desktop:popout-nav";
 export const POPOUT_STATE_CHANNEL = "desktop:popout-state";
