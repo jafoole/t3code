@@ -849,6 +849,10 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     yield* runCommand(
       ChildProcess.make({
         cwd: repoRoot,
+        // Stamp the release version into the web renderer (apps/web reads
+        // APP_VERSION at build time for the Settings "Version" label et al.) —
+        // otherwise it falls back to apps/web/package.json, which nobody bumps.
+        env: { ...process.env, APP_VERSION: appVersion },
         // Windows needs shell mode to resolve .cmd shims (e.g. vp.cmd).
         shell: process.platform === "win32",
       })`vp run build:desktop`,
