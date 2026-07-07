@@ -39,10 +39,13 @@ const UPDATE_FROM_FIGMA_PROMPT =
 // real" hands the Quick off to whichever project lives in that directory.
 const PROTOTYPES_CWD_SUFFIX = "/Sortly Prototypes";
 
-// Builds the ready-to-send handoff prompt. The trailing placeholder is meant
-// to be edited by the user before sending.
+// Builds the ready-to-send handoff prompt. Placement is deliberately NOT a
+// fill-in-the-blank (users skip those): the repo recipe has the agent inspect
+// the prototype + the app's navigation, PROPOSE where it should live, and wait
+// for confirmation before building. The user can still pre-empt by appending
+// "put it under Workflows" etc. before sending.
 function makeItRealPrompt(name: string, quickId: string): string {
-  return `Make this Sortly Quick real: bring "${name}" (Quick id ${quickId}) into this app as a real route, following the "Make it real" recipe in CLAUDE.md and docs/make-it-real.md. Run git pull first so the pipeline components are present. Put it: <describe where — e.g. "a new page called Warehouse Overview" or "on the Items page, under the header">`;
+  return `Make this Sortly Quick real: bring "${name}" (Quick id ${quickId}) into this app as a real route, following the "Make it real" recipe in CLAUDE.md and docs/make-it-real.md. Run git pull first so the pipeline components are present. Then look at the prototype and this app's navigation, propose where it should live (section, route, page vs. inline), and confirm the placement with me before building — unless I've already told you where, in which case restate it in your plan.`;
 }
 
 interface QuickHeaderActionsProps {
