@@ -7,8 +7,8 @@ import { isSortlyQuickWorkspace } from "./createSortlyQuick";
 // user switches threads and comes back mid-build).
 const firedThreadKeys = new Set<string>();
 
-// Sortly Quick canvas hand-off, part 2: the pop-out opens BEHIND Pallet at
-// Quick-creation time (see createSortlyQuick / openQuickCanvas). When the
+// Sortly Quick canvas hand-off, part 2: the pop-out opens BEHIND Pallet by
+// ChatView's auto-open effect when the Quick thread becomes active. When the
 // agent's FIRST turn in the Quick's thread finishes — working transitions
 // true → false — bring the pop-out to the front so the user knows the
 // prototype is ready. Fires at most once per thread; repeated focus-stealing
@@ -16,6 +16,9 @@ const firedThreadKeys = new Set<string>();
 export function useQuickBuildPopout(input: {
   readonly workspaceRoot: string | null;
   readonly threadKey: string | null;
+  // Must be a REAL build signal (phase running / send in flight) — do NOT pass
+  // a composite that includes connection churn, or reopening an old completed
+  // thread can flicker true → false and steal focus with no build having run.
   readonly isWorking: boolean;
   // True once the thread has a settled turn — i.e. the agent actually produced
   // a response. Guards against `isWorking` flickers (connect/dispatch churn)

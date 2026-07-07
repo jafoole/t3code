@@ -1087,13 +1087,15 @@ export default function ChatView(props: ChatViewProps) {
 
   // Sortly Quick projects: auto-open the canvas on the prototype's edit URL.
   // Opens the pop-out window (not the side panel) per the Pallet preview rule.
+  // Unfocused (behind Pallet) so the user keeps typing their first message —
+  // useQuickBuildPopout surfaces it once the first build completes.
   const activeQuickRoot = activeProject?.cwd ?? null;
   useEffect(() => {
     if (!activeQuickRoot || !isSortlyQuickWorkspace(activeQuickRoot)) return;
     let cancelled = false;
     void window.desktopBridge?.sortlyQuickInfo?.(activeQuickRoot).then((info) => {
       if (cancelled || !info) return;
-      openPreviewPopout(info.editUrl);
+      openPreviewPopout(info.editUrl, { focus: false });
     });
     return () => {
       cancelled = true;
@@ -1593,11 +1595,13 @@ export default function ChatView(props: ChatViewProps) {
   const isWorking = phase === "running" || isSendBusy || isConnecting || isRevertingCheckpoint;
 
   // Sortly Quick: surface the canvas pop-out (opened behind Pallet at
-  // creation) once the first agent turn in this thread completes.
+  // creation) once the first agent turn in this thread completes. Deliberately
+  // narrower than `isWorking`: a connect flicker (isConnecting true → false)
+  // when reopening an old Quick thread must not count as a build finishing.
   useQuickBuildPopout({
     workspaceRoot: activeQuickRoot,
     threadKey: activeThreadKey,
-    isWorking,
+    isWorking: phase === "running" || isSendBusy,
     hasCompletedTurn: activeLatestTurn !== null && latestTurnSettled,
   });
   const activeWorkStartedAt = deriveActiveWorkStartedAt(

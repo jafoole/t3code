@@ -3,7 +3,6 @@ import { scopeProjectRef } from "@t3tools/client-runtime";
 
 import { getPrimaryEnvironmentConnection } from "../../environments/runtime";
 import { newCommandId, newProjectId } from "../../lib/utils";
-import { openPreviewPopout } from "../Browser/openPreview";
 
 export const QUICKS_PATH_SEGMENT = "/Sortly Quicks/";
 
@@ -19,15 +18,6 @@ export function defaultQuickName(now = new Date()): string {
     second: "2-digit",
   });
   return `Quick — ${date} ${time}`;
-}
-
-// Opens the Quick's edit URL in the pop-out browser window. Deferred a tick so
-// it lands after ChatView's scope-change effect runs on navigation. Opened
-// unfocused (behind Pallet) so the user keeps typing their first message.
-export function openQuickCanvas(editUrl: string): void {
-  setTimeout(() => {
-    openPreviewPopout(editUrl, { focus: false });
-  }, 50);
 }
 
 export async function createSortlyQuick(

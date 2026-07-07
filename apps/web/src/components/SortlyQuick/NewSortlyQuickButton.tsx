@@ -3,7 +3,8 @@ import { useState } from "react";
 
 import { useNewThreadHandler } from "../../hooks/useHandleNewThread";
 import { SidebarGroup, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "../ui/sidebar";
-import { createSortlyQuick, defaultQuickName, openQuickCanvas } from "./createSortlyQuick";
+import { toastManager, stackedThreadToast } from "../ui/toast";
+import { createSortlyQuick, defaultQuickName } from "./createSortlyQuick";
 
 /**
  * One-click Sortly Quick: creates a prototype on the Sortly Quick server,
@@ -13,22 +14,31 @@ import { createSortlyQuick, defaultQuickName, openQuickCanvas } from "./createSo
 export function NewSortlyQuickButton() {
   const { handleNewThread } = useNewThreadHandler();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const showCreateError = (description: string) => {
+    toastManager.add(
+      stackedThreadToast({
+        type: "error",
+        title: "Couldn't create the Quick",
+        description,
+      }),
+    );
+  };
 
   const handleClick = async () => {
     if (busy) return;
     setBusy(true);
-    setError(null);
     try {
       const result = await createSortlyQuick(defaultQuickName());
       if ("error" in result) {
-        setError(result.error);
+        showCreateError(result.error);
         return;
       }
+      // Navigating to the new Quick's thread triggers ChatView's auto-open
+      // effect, which pops the canvas (unfocused) — no explicit open needed.
       await handleNewThread(result.projectRef, { envMode: "local" });
-      openQuickCanvas(result.editUrl);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Something went wrong.");
+      showCreateError(cause instanceof Error ? cause.message : "Something went wrong.");
     } finally {
       setBusy(false);
     }
@@ -57,9 +67,6 @@ export function NewSortlyQuickButton() {
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
-      {error ? (
-        <div className="px-2 pt-1 text-[10px] leading-snug text-destructive">{error}</div>
-      ) : null}
     </SidebarGroup>
   );
 }
