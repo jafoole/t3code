@@ -6,13 +6,13 @@ import { useBrowserPanelStore } from "./browserPanelStore";
 //
 // The pop-out is a real Electron BrowserWindow (see desktop InAppBrowser); it
 // reuses/focuses a single shared window, so repeated calls don't spawn clutter.
-export function openPreviewPopout(url: string): void {
+export function openPreviewPopout(url: string, options?: { readonly focus?: boolean }): void {
   const store = useBrowserPanelStore.getState();
   // Remember the URL so the side-panel option (and toolbar) reflect it too.
   store.setUrl(url);
   const popout = window.desktopBridge?.browserOpenPopout;
   if (popout) {
-    void popout(url);
+    void popout(url, options);
     return;
   }
   // Web fallback (no desktop bridge): there is no pop-out window, so use the panel.

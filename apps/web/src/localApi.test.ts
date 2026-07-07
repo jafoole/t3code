@@ -283,6 +283,8 @@ function makeDesktopBridge(overrides: Partial<DesktopBridge> = {}): DesktopBridg
     sortlyQuickCreate: async () => ({ error: "Not implemented in test" } as const),
     sortlyQuickInfo: async () => null,
     sortlyQuickPublish: async () => ({ ok: true, isPublic: true }),
+    sortlyQuickPublishState: async () => null,
+    sortlyQuickDelete: async () => ({ ok: true } as const),
     ...overrides,
   };
 }

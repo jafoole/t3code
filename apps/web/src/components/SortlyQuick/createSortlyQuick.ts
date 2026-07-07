@@ -22,10 +22,11 @@ export function defaultQuickName(now = new Date()): string {
 }
 
 // Opens the Quick's edit URL in the pop-out browser window. Deferred a tick so
-// it lands after ChatView's scope-change effect runs on navigation.
+// it lands after ChatView's scope-change effect runs on navigation. Opened
+// unfocused (behind Pallet) so the user keeps typing their first message.
 export function openQuickCanvas(editUrl: string): void {
   setTimeout(() => {
-    openPreviewPopout(editUrl);
+    openPreviewPopout(editUrl, { focus: false });
   }, 50);
 }
 

@@ -44,6 +44,7 @@ function useNewThreadState() {
         getDraftSession,
         getDraftThread,
         applyStickyState,
+        clearDraftThread,
         setDraftThreadContext,
         setLogicalProjectDraftThreadId,
       } = useComposerDraftStore.getState();
@@ -143,6 +144,11 @@ function useNewThreadState() {
       const threadId = newThreadId();
       const createdAt = new Date().toISOString();
       return (async () => {
+        // The fresh draft replaces the project's empty, still-parked-on draft —
+        // clear the orphan so it doesn't linger in the store forever.
+        if (forceFreshDraft && storedDraftThread) {
+          clearDraftThread(storedDraftThread.draftId);
+        }
         setLogicalProjectDraftThreadId(logicalProjectKey, projectRef, draftId, {
           threadId,
           createdAt,

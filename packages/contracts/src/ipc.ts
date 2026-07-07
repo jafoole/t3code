@@ -116,6 +116,18 @@ export type SortlyQuickPublishResult =
   | { readonly ok: true; readonly isPublic: boolean }
   | { readonly error: string };
 
+export type SortlyQuickPublishState = { readonly isPublic: boolean } | null;
+
+export type SortlyQuickDeleteResult = { readonly ok: true } | { readonly error: string };
+
+export interface BrowserOpenPopoutOptions {
+  /**
+   * When false, the pop-out window opens WITHOUT stealing focus and is placed
+   * behind the main window. Defaults to true (focused, on top).
+   */
+  readonly focus?: boolean;
+}
+
 export interface ContextMenuItem<T extends string = string> {
   id: T;
   label: string;
@@ -521,7 +533,7 @@ export interface DesktopBridge {
   browserBack: () => Promise<void>;
   browserForward: () => Promise<void>;
   browserReload: () => Promise<void>;
-  browserOpenPopout: (url: string) => Promise<void>;
+  browserOpenPopout: (url: string, options?: BrowserOpenPopoutOptions) => Promise<void>;
   onBrowserState: (listener: (state: BrowserNavigationState) => void) => () => void;
   onExternalLinkRequest: (listener: (url: string) => void) => () => void;
   createCloudAuthRequest: () => Promise<string>;
@@ -555,6 +567,8 @@ export interface DesktopBridge {
     publish: boolean,
     name?: string,
   ) => Promise<SortlyQuickPublishResult>;
+  sortlyQuickPublishState: (workspaceRoot: string) => Promise<SortlyQuickPublishState>;
+  sortlyQuickDelete: (workspaceRoot: string) => Promise<SortlyQuickDeleteResult>;
 }
 
 /**

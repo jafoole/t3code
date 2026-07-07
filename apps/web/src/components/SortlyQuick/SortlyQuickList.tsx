@@ -1,6 +1,6 @@
 import { scopeThreadRef } from "@t3tools/client-runtime";
 import type { ContextMenuItem } from "@t3tools/contracts";
-import { useRouter } from "@tanstack/react-router";
+import { useParams, useRouter } from "@tanstack/react-router";
 import { MoreVerticalIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -12,7 +12,7 @@ import { newCommandId } from "../../lib/utils";
 import { readLocalApi } from "../../localApi";
 import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
 import { selectSidebarThreadsForProjectRefs, useStore } from "../../store";
-import { buildThreadRouteParams } from "../../threadRoutes";
+import { buildThreadRouteParams, resolveThreadRouteTarget } from "../../threadRoutes";
 import { resolveThreadRowClassName } from "../Sidebar.logic";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "../ui/sidebar";
 import { stackedThreadToast, toastManager } from "../ui/toast";
@@ -39,20 +39,41 @@ export function SortlyQuickList({
   activeRouteProjectKey,
   handleNewThread,
 }: SortlyQuickListProps) {
+  // A just-created Quick lives on /draft/$draftId — no server thread yet, so
+  // activeRouteProjectKey (thread-derived) can't match it. Resolve the active
+  // draft's project reactively so the row still highlights.
+  const routeTarget = useParams({
+    strict: false,
+    select: (params) => resolveThreadRouteTarget(params),
+  });
+  const activeDraftId = routeTarget?.kind === "draft" ? routeTarget.draftId : null;
+  const activeDraftSession = useComposerDraftStore((store) =>
+    activeDraftId ? store.getDraftSession(activeDraftId) : null,
+  );
+
   if (quicks.length === 0) {
     return null;
   }
 
   return (
     <SidebarMenu className="gap-0.5 px-2 pb-1">
-      {quicks.map((quick) => (
-        <SortlyQuickRow
-          key={quick.projectKey}
-          quick={quick}
-          isActive={activeRouteProjectKey === quick.projectKey}
-          handleNewThread={handleNewThread}
-        />
-      ))}
+      {quicks.map((quick) => {
+        const isDraftActive =
+          activeDraftSession != null &&
+          quick.memberProjectRefs.some(
+            (ref) =>
+              ref.projectId === activeDraftSession.projectId &&
+              ref.environmentId === activeDraftSession.environmentId,
+          );
+        return (
+          <SortlyQuickRow
+            key={quick.projectKey}
+            quick={quick}
+            isActive={activeRouteProjectKey === quick.projectKey || isDraftActive}
+            handleNewThread={handleNewThread}
+          />
+        );
+      })}
     </SidebarMenu>
   );
 }
@@ -119,6 +140,28 @@ function SortlyQuickRow({
     if (!primaryRef) {
       return;
     }
+    // Delete everywhere first: the server prototype (which also pulls it from
+    // the gallery) and the local workspace folder — the snapshot's cwd is the
+    // Quick's workspace root. A failure here is surfaced but never blocks the
+    // local project deletion, so the user is never left stranded.
+    let remoteError: string | null = null;
+    try {
+      const remote = await window.desktopBridge?.sortlyQuickDelete?.(quick.cwd);
+      if (remote && "error" in remote) {
+        remoteError = remote.error;
+      }
+    } catch (cause) {
+      remoteError = cause instanceof Error ? cause.message : String(cause);
+    }
+    if (remoteError) {
+      toastManager.add(
+        stackedThreadToast({
+          type: "error",
+          title: `Couldn't fully delete "${displayName}"`,
+          description: remoteError,
+        }),
+      );
+    }
     const draftStore = useComposerDraftStore.getState();
     const projectDraft = draftStore.getDraftThreadByProjectRef(primaryRef);
     if (projectDraft) {
@@ -127,6 +170,13 @@ function SortlyQuickRow({
     draftStore.clearProjectDraftThreadId(primaryRef);
     const api = readEnvironmentApi(primaryRef.environmentId);
     if (!api) {
+      toastManager.add(
+        stackedThreadToast({
+          type: "error",
+          title: `Failed to delete "${displayName}"`,
+          description: "No backend connection — please try again.",
+        }),
+      );
       return;
     }
     try {
@@ -135,6 +185,15 @@ function SortlyQuickRow({
         commandId: newCommandId(),
         projectId: primaryRef.projectId,
       });
+      if (!remoteError) {
+        toastManager.add(
+          stackedThreadToast({
+            type: "success",
+            title: `Deleted "${displayName}"`,
+            description: "Deleted — removed from the gallery and server too.",
+          }),
+        );
+      }
     } catch (cause) {
       toastManager.add(
         stackedThreadToast({

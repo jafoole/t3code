@@ -1,4 +1,8 @@
-import { type EnvironmentId, type ThreadId } from "@t3tools/contracts";
+import {
+  type EnvironmentId,
+  type SortlyQuickPublishResult,
+  type ThreadId,
+} from "@t3tools/contracts";
 import { scopeThreadRef } from "@t3tools/client-runtime";
 import { useEffect, useState } from "react";
 import { CheckIcon, ChevronDownIcon, FigmaIcon, GlobeIcon, Share2Icon } from "lucide-react";
@@ -45,20 +49,44 @@ export function QuickHeaderActions({
 }: QuickHeaderActionsProps) {
   const isQuick = isSortlyQuickWorkspace(openInCwd);
   const [viewUrl, setViewUrl] = useState<string | null>(null);
-  // We don't know the published state on load (the local manifest doesn't
-  // track it), so start at "idle" — publishing is idempotent, so a re-publish
-  // is harmless. After an action we reflect the server's answer.
+  // Distinguishes "still fetching the share link" from "fetch finished and
+  // there is no link" so the Share tooltip can say the right thing.
+  const [shareInfoSettled, setShareInfoSettled] = useState(false);
+  // The local manifest doesn't track published state, so start at "idle" and
+  // let the server's answer (fetched below) correct it — publishing is
+  // idempotent, so an optimistic "idle" is harmless if that fetch fails.
   const [publishState, setPublishState] = useState<"idle" | "working" | "published">("idle");
 
   useEffect(() => {
+    setShareInfoSettled(false);
+    setPublishState("idle");
     if (!isQuick || !openInCwd) {
       setViewUrl(null);
       return;
     }
     let cancelled = false;
-    void window.desktopBridge?.sortlyQuickInfo?.(openInCwd).then((info) => {
-      if (!cancelled) setViewUrl(info?.viewUrl ?? null);
-    });
+    void window.desktopBridge?.sortlyQuickInfo
+      ?.(openInCwd)
+      .then((info) => {
+        if (!cancelled) {
+          setViewUrl(info?.viewUrl ?? null);
+          setShareInfoSettled(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setViewUrl(null);
+          setShareInfoSettled(true);
+        }
+      });
+    // Seed the Publish button from the server's actual state; null (endpoint
+    // missing, offline, 404) keeps the optimistic "idle" default.
+    void window.desktopBridge?.sortlyQuickPublishState
+      ?.(openInCwd)
+      .then((state) => {
+        if (!cancelled && state?.isPublic) setPublishState("published");
+      })
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
@@ -101,11 +129,22 @@ export function QuickHeaderActions({
     if (!openInCwd || publishState === "working") return;
     const wantPublish = publishState !== "published";
     setPublishState("working");
-    const result = await window.desktopBridge?.sortlyQuickPublish?.(
-      openInCwd,
-      wantPublish,
-      quickName,
-    );
+    // A not-yet-sent Quick (draft) has only the placeholder thread title
+    // ("New thread") — publish without a name so the gallery keeps the
+    // Quick's own name instead.
+    const publishName = draftId ? undefined : quickName;
+    let result: SortlyQuickPublishResult | undefined;
+    try {
+      result = await window.desktopBridge?.sortlyQuickPublish?.(
+        openInCwd,
+        wantPublish,
+        publishName,
+      );
+    } catch (cause) {
+      // An IPC rejection must never wedge the button in "working" — fall
+      // through to the shared error path below.
+      result = { error: cause instanceof Error ? cause.message : "Please try again." };
+    }
     if (!result || "error" in result) {
       setPublishState(wantPublish ? "idle" : "published");
       toastManager.add(
@@ -148,7 +187,11 @@ export function QuickHeaderActions({
           }
         />
         <TooltipPopup side="bottom">
-          {viewUrl ? "Copy a view-only link to share for feedback" : "Preparing share link…"}
+          {viewUrl
+            ? "Copy a view-only link to share for feedback"
+            : shareInfoSettled
+              ? "Share link unavailable"
+              : "Preparing share link…"}
         </TooltipPopup>
       </Tooltip>
       <Menu>

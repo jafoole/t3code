@@ -49,6 +49,17 @@ const PublishResultSchema = Schema.Union([
   Schema.Struct({ error: Schema.String }),
 ]);
 
+const PublishStatePayloadSchema = Schema.Struct({ workspaceRoot: Schema.String });
+const PublishStateResultSchema = Schema.NullOr(
+  Schema.Struct({ isPublic: Schema.Boolean }),
+);
+
+const DeletePayloadSchema = Schema.Struct({ workspaceRoot: Schema.String });
+const DeleteResultSchema = Schema.Union([
+  Schema.Struct({ ok: Schema.Literal(true) }),
+  Schema.Struct({ error: Schema.String }),
+]);
+
 // Compiled once at module scope (the lint rule flags rebuilding it per call).
 const decodeQuickInfoJson = Schema.decodeUnknownEffect(
   Schema.fromJsonString(QuickInfoSchema),
@@ -122,7 +133,7 @@ WHOLE phone — status bar + body + home indicator share it, so they blend inste
 of reading as separate white bars; defaults to bg-grey-50). Put the app's real
 content as children so it fills the screen top-to-bottom; if the app has a tab
 bar, pass it as \`bottomBar\`. **Set the screen's background color via the
-\`background\` prop, NOT as a full-bleed bg on your content\`** — that keeps the
+\`background\` prop, NOT as a full-bleed bg on your content** — that keeps the
 status bar and home-indicator areas the same color as the screen.
 
 Example — the design goes INSIDE PhoneScreen:
@@ -343,6 +354,16 @@ const warmEndpoint = (url: string) =>
     fetch(url, { method: "GET", signal: AbortSignal.timeout(2000) }),
   ).pipe(Effect.ignore);
 
+// editUrl is `${viewUrl}?edit=${token}` — pull the token out of the real query
+// string (robust to extra params) instead of string-splitting on "?edit=".
+function parseEditToken(editUrl: string): string | null {
+  try {
+    return new URL(editUrl).searchParams.get("edit");
+  } catch {
+    return null;
+  }
+}
+
 function slugify(name: string): string {
   const slug = name
     .toLowerCase()
@@ -436,17 +457,7 @@ export const sortlyQuickInfo = makeIpcMethod({
   payload: InfoPayloadSchema,
   result: InfoResultSchema,
   handler: Effect.fn("desktop.ipc.sortlyQuick.info")(function* ({ workspaceRoot }) {
-    const fileSystem = yield* FileSystem.FileSystem;
-    const path = yield* Path.Path;
-    const manifestPath = path.join(workspaceRoot, QUICK_MANIFEST_FILE);
-    const raw = yield* fileSystem
-      .readFileString(manifestPath)
-      .pipe(Effect.orElseSucceed(() => null));
-    if (raw === null) return null;
-    const decoded = yield* decodeQuickInfoJson(raw).pipe(
-      Effect.orElseSucceed(() => null),
-    );
-    return decoded;
+    return yield* readQuickManifest(workspaceRoot);
   }),
 });
 
@@ -454,10 +465,10 @@ export const sortlyQuickInfo = makeIpcMethod({
 // (the edit token) lives in the workspace manifest (editUrl = viewUrl?edit=…),
 // so we read it and authorize the publish call as the owner — no Google login
 // needed on this side (browsing + upvoting the gallery is what requires it).
-const doPublish = Effect.fn("desktop.ipc.sortlyQuick.doPublish")(function* (
+// Reads and decodes the workspace's quick.json manifest — null when the file
+// is missing or malformed, so callers can degrade gracefully.
+const readQuickManifest = Effect.fn("desktop.ipc.sortlyQuick.readManifest")(function* (
   workspaceRoot: string,
-  publish: boolean,
-  name?: string,
 ) {
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -465,31 +476,39 @@ const doPublish = Effect.fn("desktop.ipc.sortlyQuick.doPublish")(function* (
   const raw = yield* fileSystem
     .readFileString(manifestPath)
     .pipe(Effect.orElseSucceed(() => null));
-  if (raw === null) {
-    return { error: "This Quick has no manifest, so it can't be published." };
-  }
-  const info = yield* decodeQuickInfoJson(raw).pipe(
-    Effect.orElseSucceed(() => null),
-  );
+  if (raw === null) return null;
+  return yield* decodeQuickInfoJson(raw).pipe(Effect.orElseSucceed(() => null));
+});
+
+const doPublish = Effect.fn("desktop.ipc.sortlyQuick.doPublish")(function* (
+  workspaceRoot: string,
+  publish: boolean,
+  name?: string,
+) {
+  const info = yield* readQuickManifest(workspaceRoot);
   if (info === null) {
-    return { error: "Couldn't read this Quick's manifest." };
+    return { error: "Couldn't read this Quick's manifest, so it can't be published." };
   }
-  // editUrl is `${viewUrl}?edit=${token}` — the token is the only query param.
-  const editToken = info.editUrl.split("?edit=")[1] ?? null;
+  const editToken = parseEditToken(info.editUrl);
   if (!editToken) {
     return { error: "This Quick's manifest is missing its edit token." };
   }
   // On publish, send the descriptive name so the gallery shows it instead of
   // the auto "Quick — <date>" default. On unpublish (DELETE) we send no body.
   const sendName = publish && typeof name === "string" && name.trim().length > 0;
-  yield* fetchJson(`${SORTLY_QUICK_BASE_URL}/api/prototypes/${info.id}/publish`, {
+  const body = yield* fetchJson(`${SORTLY_QUICK_BASE_URL}/api/prototypes/${info.id}/publish`, {
     method: publish ? "POST" : "DELETE",
     headers: sendName
       ? { Authorization: `Bearer ${editToken}`, "Content-Type": "application/json" }
       : { Authorization: `Bearer ${editToken}` },
-    ...(sendName ? { body: JSON.stringify({ name }) } : {}),
+    ...(sendName && name ? { body: JSON.stringify({ name: name.trim().slice(0, 200) }) } : {}),
   });
-  return { ok: true as const, isPublic: publish };
+  // Trust the server's answer when it reports the resulting state (the POST
+  // returns { id, is_public, published_at }); fall back to the requested state.
+  return {
+    ok: true as const,
+    isPublic: typeof body.is_public === "boolean" ? body.is_public : publish,
+  };
 });
 
 export const sortlyQuickPublish = makeIpcMethod({
@@ -506,5 +525,97 @@ export const sortlyQuickPublish = makeIpcMethod({
       return result.success;
     }
     return { error: result.failure.message };
+  }),
+});
+
+// Asks the server whether this Quick is currently in the gallery, so the
+// Publish button can reflect reality on load instead of always starting at
+// "idle". Best-effort: null on any error/404/missing manifest — the caller
+// keeps its optimistic default.
+const doFetchPublishState = Effect.fn("desktop.ipc.sortlyQuick.doFetchPublishState")(
+  function* (workspaceRoot: string) {
+    const info = yield* readQuickManifest(workspaceRoot);
+    if (info === null) return null;
+    const body = yield* fetchJson(
+      `${SORTLY_QUICK_BASE_URL}/api/prototypes/${info.id}/publish`,
+      { method: "GET" },
+    );
+    if (typeof body.isPublic !== "boolean") return null;
+    return { isPublic: body.isPublic };
+  },
+);
+
+export const sortlyQuickPublishState = makeIpcMethod({
+  channel: IpcChannels.SORTLY_QUICK_PUBLISH_STATE_CHANNEL,
+  payload: PublishStatePayloadSchema,
+  result: PublishStateResultSchema,
+  handler: Effect.fn("desktop.ipc.sortlyQuick.publishState")(function* ({ workspaceRoot }) {
+    return yield* doFetchPublishState(workspaceRoot).pipe(Effect.orElseSucceed(() => null));
+  }),
+});
+
+// Deletes the prototype on the Sortly Quick server (tolerating an already-gone
+// 404) — the DELETE also removes it from the gallery server-side.
+const deleteOnServer = (id: string, editToken: string) =>
+  Effect.tryPromise({
+    try: async () => {
+      const response = await fetch(`${SORTLY_QUICK_BASE_URL}/api/prototypes/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${editToken}` },
+      });
+      if (!response.ok && response.status !== 404) {
+        throw new Error(`Sortly Quick server returned ${response.status}`);
+      }
+    },
+    catch: (cause) =>
+      new SortlyQuickError({
+        message: cause instanceof Error ? cause.message : String(cause),
+      }),
+  });
+
+// Full delete cascade for a Quick: remove the prototype from the server (and
+// with it, the gallery), then remove the local workspace folder. The folder is
+// removed even when the server call fails, so a dead/unreachable server never
+// strands an orphaned workspace on disk — the server error is still reported.
+const doDelete = Effect.fn("desktop.ipc.sortlyQuick.doDelete")(function* (
+  workspaceRoot: string,
+) {
+  // SAFETY: this method recursively deletes a directory — refuse anything that
+  // isn't inside the dedicated Sortly Quicks home.
+  if (!workspaceRoot.includes(`/${QUICKS_DIR_NAME}/`)) {
+    return { error: "Refusing to delete: not a Sortly Quick workspace." };
+  }
+  const fileSystem = yield* FileSystem.FileSystem;
+
+  let serverError: string | null = null;
+  const info = yield* readQuickManifest(workspaceRoot);
+  const editToken = info === null ? null : parseEditToken(info.editUrl);
+  if (info !== null && editToken !== null) {
+    const deleted = yield* Effect.result(deleteOnServer(info.id, editToken));
+    if (Result.isFailure(deleted)) {
+      serverError = deleted.failure.message;
+    }
+  }
+
+  const removed = yield* Effect.result(
+    fileSystem.remove(workspaceRoot, { recursive: true, force: true }),
+  );
+  if (Result.isFailure(removed)) {
+    return { error: String(removed.failure) };
+  }
+  if (serverError !== null) {
+    return { error: `Removed locally, but the server delete failed: ${serverError}` };
+  }
+  return { ok: true as const };
+});
+
+export const sortlyQuickDelete = makeIpcMethod({
+  channel: IpcChannels.SORTLY_QUICK_DELETE_CHANNEL,
+  payload: DeletePayloadSchema,
+  result: DeleteResultSchema,
+  handler: Effect.fn("desktop.ipc.sortlyQuick.delete")(function* ({ workspaceRoot }) {
+    // doDelete reports every failure in its return value (error channel is
+    // never), so no Effect.result dance is needed here.
+    return yield* doDelete(workspaceRoot);
   }),
 });

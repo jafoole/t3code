@@ -19,7 +19,10 @@ export interface InAppBrowserShape {
   readonly goBack: Effect.Effect<void>;
   readonly goForward: Effect.Effect<void>;
   readonly reload: Effect.Effect<void>;
-  readonly openPopout: (url: string) => Effect.Effect<void>;
+  readonly openPopout: (
+    url: string,
+    options?: { readonly focus?: boolean },
+  ) => Effect.Effect<void>;
 }
 
 export class InAppBrowser extends Context.Service<InAppBrowser, InAppBrowserShape>()(
@@ -377,8 +380,13 @@ const make = Effect.gen(function* () {
       s.view.webContents.reload();
     }).pipe(Effect.asVoid),
 
-    openPopout: (url) =>
+    openPopout: (url, options) =>
       Effect.gen(function* () {
+        // focus === false opens the pop-out BEHIND the main window without
+        // stealing keyboard focus (e.g. the freshly-created Sortly Quick canvas
+        // while the user should keep typing in Pallet). Default is unchanged:
+        // focused, on top.
+        const focus = options?.focus !== false;
         const chromeless = isChromelessUrl(url);
         const existing = yield* Ref.get(popoutRef);
         if (Option.isSome(existing) && !existing.value.window.isDestroyed()) {
@@ -391,7 +399,11 @@ const make = Effect.gen(function* () {
                 logWarning("popout loadURL failed", { url, cause: String(cause) }),
               ),
             );
-            existing.value.window.focus();
+            if (focus) {
+              existing.value.window.focus();
+            } else if (!existing.value.window.isVisible()) {
+              existing.value.window.showInactive();
+            }
             return;
           }
           // Chrome shape changed (e.g. Quick ↔ localhost preview) — rebuild fresh.
@@ -404,6 +416,9 @@ const make = Effect.gen(function* () {
           width: 1280,
           height: 900,
           backgroundColor: themedBackgroundColor(dark),
+          // Unfocused mode: create hidden, then showInactive() below so the
+          // window never activates or jumps in front of the main window.
+          ...(focus ? {} : { show: false }),
           webPreferences: {
             sandbox: true,
             contextIsolation: true,
@@ -453,6 +468,17 @@ const make = Effect.gen(function* () {
         });
 
         yield* Ref.set(popoutRef, Option.some(state));
+
+        if (!focus) {
+          // Show without activating, then re-assert the main window so the
+          // pop-out sits behind Pallet instead of covering it.
+          win.showInactive();
+          const mainOpt = yield* electronWindow.currentMainOrFirst;
+          if (Option.isSome(mainOpt) && !mainOpt.value.isDestroyed()) {
+            mainOpt.value.moveTop();
+            mainOpt.value.focus();
+          }
+        }
 
         if (toolbar) {
           const toolbarHtml = buildPopoutToolbarHtml(dark);

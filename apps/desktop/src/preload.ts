@@ -105,8 +105,11 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   browserBack: () => ipcRenderer.invoke(IpcChannels.BROWSER_BACK_CHANNEL),
   browserForward: () => ipcRenderer.invoke(IpcChannels.BROWSER_FORWARD_CHANNEL),
   browserReload: () => ipcRenderer.invoke(IpcChannels.BROWSER_RELOAD_CHANNEL),
-  browserOpenPopout: (url: string) =>
-    ipcRenderer.invoke(IpcChannels.BROWSER_OPEN_POPOUT_CHANNEL, url),
+  browserOpenPopout: (url: string, options?: { readonly focus?: boolean }) =>
+    ipcRenderer.invoke(IpcChannels.BROWSER_OPEN_POPOUT_CHANNEL, {
+      url,
+      ...(options?.focus === undefined ? {} : { focus: options.focus }),
+    }),
   onBrowserState: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, state: unknown) => {
       if (typeof state !== "object" || state === null) return;
@@ -179,6 +182,10 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     ipcRenderer.invoke(IpcChannels.SORTLY_QUICK_INFO_CHANNEL, { workspaceRoot }),
   sortlyQuickPublish: (workspaceRoot: string, publish: boolean, name?: string) =>
     ipcRenderer.invoke(IpcChannels.SORTLY_QUICK_PUBLISH_CHANNEL, { workspaceRoot, publish, name }),
+  sortlyQuickPublishState: (workspaceRoot: string) =>
+    ipcRenderer.invoke(IpcChannels.SORTLY_QUICK_PUBLISH_STATE_CHANNEL, { workspaceRoot }),
+  sortlyQuickDelete: (workspaceRoot: string) =>
+    ipcRenderer.invoke(IpcChannels.SORTLY_QUICK_DELETE_CHANNEL, { workspaceRoot }),
   onUpdateState: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, state: unknown) => {
       if (typeof state !== "object" || state === null) return;

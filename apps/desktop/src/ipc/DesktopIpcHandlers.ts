@@ -66,8 +66,10 @@ import {
 import { bootstrapPrototypesProject } from "./methods/projectBootstrap.ts";
 import {
   sortlyQuickCreate,
+  sortlyQuickDelete,
   sortlyQuickInfo,
   sortlyQuickPublish,
+  sortlyQuickPublishState,
 } from "./methods/sortlyQuick.ts";
 
 export const installDesktopIpcHandlers = Effect.gen(function* () {
@@ -131,4 +133,6 @@ export const installDesktopIpcHandlers = Effect.gen(function* () {
   yield* ipc.handle(sortlyQuickCreate);
   yield* ipc.handle(sortlyQuickInfo);
   yield* ipc.handle(sortlyQuickPublish);
+  yield* ipc.handle(sortlyQuickPublishState);
+  yield* ipc.handle(sortlyQuickDelete);
 }).pipe(Effect.withSpan("desktop.ipc.installHandlers"));

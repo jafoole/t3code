@@ -66,12 +66,17 @@ export const browserReload = makeIpcMethod({
   }),
 });
 
+const OpenPopoutPayloadSchema = Schema.Struct({
+  url: Schema.String,
+  focus: Schema.optional(Schema.Boolean),
+});
+
 export const browserOpenPopout = makeIpcMethod({
   channel: IpcChannels.BROWSER_OPEN_POPOUT_CHANNEL,
-  payload: Schema.String,
+  payload: OpenPopoutPayloadSchema,
   result: Schema.Void,
-  handler: Effect.fn("desktop.ipc.browser.openPopout")(function* (url) {
+  handler: Effect.fn("desktop.ipc.browser.openPopout")(function* ({ url, focus }) {
     const browser = yield* InAppBrowser.InAppBrowser;
-    yield* browser.openPopout(url);
+    yield* browser.openPopout(url, focus === undefined ? undefined : { focus });
   }),
 });

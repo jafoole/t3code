@@ -515,6 +515,8 @@ const createDesktopBridgeStub = (overrides?: {
     sortlyQuickCreate: vi.fn().mockResolvedValue({ error: "Not implemented in tests" } as const),
     sortlyQuickInfo: vi.fn().mockResolvedValue(null),
     sortlyQuickPublish: vi.fn().mockResolvedValue({ ok: true, isPublic: true }),
+    sortlyQuickPublishState: vi.fn().mockResolvedValue(null),
+    sortlyQuickDelete: vi.fn().mockResolvedValue({ ok: true } as const),
   };
 };
 
