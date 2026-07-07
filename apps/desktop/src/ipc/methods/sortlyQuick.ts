@@ -114,15 +114,18 @@ then build it on the canvas with the MCP tools below.
 - Do NOT create local source files; the prototype's only home is the server.
   The user sees changes in their canvas immediately after update_prototype.
 
-## Mobile / phone app screens
+## Mobile / phone app screens — build to iOS HIG metrics
 
 When the user asks for a mobile app, a phone screen, an iOS/Android app, or shows
 you a phone screenshot: design a **full, standard-size phone screen** — NEVER a
 cramped half-height card. This is the most common mistake; default to a full phone.
 
 **ALWAYS wrap the entire mobile design in the \`<PhoneScreen>\` DS component.** It
-is the standard 390 × 844 iPhone frame (status bar, scrollable body, optional
-bottom tab bar, home indicator) — do NOT hand-roll a card or a partial screen.
+is the standard 390 × 844 iPhone frame — the real iPhone point grid, 1px = 1pt —
+with Apple-HIG-correct chrome baked in: 54px status-bar area, a \`bottomBar\` slot
+that enforces the 49px minimum tab-bar height, and a 34px home-indicator safe
+area. Do NOT hand-roll a card or a partial screen, and do NOT add your own status
+bar, home indicator, or bottom safe-area padding — the frame provides all three.
 The PhoneScreen frame **is** the discrete "surface that sits on the board" from
 the rule above, so it satisfies that rule; just make it a real, full phone.
 
@@ -136,17 +139,76 @@ bar, pass it as \`bottomBar\`. **Set the screen's background color via the
 \`background\` prop, NOT as a full-bleed bg on your content** — that keeps the
 status bar and home-indicator areas the same color as the screen.
 
-Example — the design goes INSIDE PhoneScreen:
+### iOS layout rules (Apple HIG — numbers, not vibes)
+
+These are Apple's Human Interface Guidelines applied to the 390×844 point grid.
+Follow them exactly; they are what makes a screen read as a real iOS app while
+keeping the Sortly identity (Poppins + DS color tokens — never change either).
+
+- **Screen margins: 16px** horizontal (\`px-4\`) for all content. Only images,
+  maps, and edge-to-edge list backgrounds may bleed to the frame edge.
+- **8px spacing grid:** every gap/padding is a multiple of 8 (4 only for tight
+  icon–label pairs): \`gap-2\`=8 \`gap-3\`=12 \`gap-4\`=16 \`gap-6\`=24. Never 5/7/9px.
+- **Touch targets ≥ 44×44px** for EVERY tappable element — buttons, icon
+  buttons, tab items, list rows. \`min-h-11\` / \`size-11\` = exactly 44px.
+- **Nav bar / header: 44px tall** (\`h-11\`), title centered, 17px semibold
+  (\`text-[17px] font-semibold\`), back/action icons as 44px targets at the
+  edges. Large-title screens instead put a **34px** bold title left-aligned
+  below a compact bar: \`text-[34px] font-semibold leading-[41px]\`.
+- **Tab bar (\`bottomBar\`): 49px tall** (\`h-[49px]\`), **2–5 items**, equal
+  widths (\`flex-1\`), each item a centered column of a ~24px icon over a
+  **10px label** (\`text-[10px] font-medium\`). Active item \`text-brand\`,
+  inactive \`text-grey-500\`. Icons are SF-Symbols-style: simple line/outline
+  glyphs with 1.5–2px strokes (inline \`<svg>\` is fine); the active tab may
+  use the filled variant.
+- **Type scale — iOS sizes rendered in Poppins:**
+  - Large title 34px → \`text-[34px] font-semibold leading-[41px]\`
+  - Title 22px → \`text-style-headings-drawer\` · Title 20px → \`text-[20px] font-semibold\`
+  - Nav title / headline 17px semibold → \`text-[17px] font-semibold\`
+  - Body 17px → \`text-[17px] leading-[22px]\` (DS \`text-style-body-large\` at 18px is an OK stand-in)
+  - Secondary 15px → \`text-[15px] text-grey-600\` · Footnote 13px → \`text-[13px] text-grey-500\`
+  - Caption 12px → \`text-style-body-caption\` · Tab labels 10px → \`text-[10px] font-medium\`
+
+  Rule of thumb: use DS \`text-style-*\` classes wherever the size already
+  matches (cards, captions, badges, section headers); use the raw \`text-[Npx]\`
+  classes above for iOS-specific metrics (34/20/17/15/13/10). Both render
+  Poppins. Use ONLY the raw sizes listed here — other arbitrary px values are
+  not in the compiled CSS and will silently not apply.
+- **Lists:** rows **≥44px** tall (56–60px is comfortable with a subtitle).
+  Grouped list = a white \`rounded-xl\` card whose rows are split by
+  \`border-grey-100\` dividers; drill-in rows end in a \`text-grey-400\`
+  chevron. Row anatomy: 28–32px leading icon/thumb · 17px (or 15px) title ·
+  13px subtitle.
+- **Cards:** \`rounded-xl\`/\`rounded-2xl\` (12–16px radius), 16px inner
+  padding (\`p-4\`), \`bg-white border border-grey-200\`.
+- **Buttons:** the screen's primary CTA is a full-width filled bar:
+  \`h-[50px] rounded-xl bg-brand text-white text-[17px] font-semibold\`.
+  Secondary/inline actions use the DS \`Button\` or 44px-tall text buttons.
+  **Exactly ONE brand-colored primary action per screen.**
+- **Search field:** 36px tall (\`h-9\`), \`rounded-[10px] bg-grey-100\`, leading
+  search icon, 17px placeholder in \`text-grey-500\`.
+- **Color/contrast:** DS tokens only. Primary text \`text-grey-900\`, body
+  \`text-grey-700\`, secondary \`text-grey-600\`. Never lighter than grey-500 for
+  text that must be read — grey-400 is for chevrons and decorative strokes.
+
+Example — the design goes INSIDE PhoneScreen, built to the metrics above:
 \`\`\`jsx
 <PhoneScreen
   bottomBar={
-    <div className="flex items-center justify-around py-2 text-style-body-caption text-grey-500">
-      {/* tab items */}
+    <div className="flex h-[49px] items-stretch">
+      <button className="flex flex-1 flex-col items-center justify-center gap-1 text-brand">
+        {/* ~24px SF-Symbols-style icon */}
+        <span className="text-[10px] font-medium">Items</span>
+      </button>
+      {/* 1–4 more tabs, inactive ones text-grey-500 */}
     </div>
   }
 >
-  <div className="flex flex-col gap-4 px-5 py-4">
-    {/* the real screen content fills the phone */}
+  <div className="flex h-11 items-center justify-between px-4">
+    {/* 44px nav bar: back target · 17px semibold title · action target */}
+  </div>
+  <div className="flex flex-col gap-4 px-4 pb-6">
+    {/* screen content: 16px margins, 8px grid, rows ≥44px */}
   </div>
 </PhoneScreen>
 \`\`\`
