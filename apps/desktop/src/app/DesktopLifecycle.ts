@@ -3,6 +3,7 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Deferred from "effect/Deferred";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as Scope from "effect/Scope";
 
@@ -92,11 +93,24 @@ function addScopedListener<Args extends ReadonlyArray<unknown>>(
   ).pipe(Effect.asVoid);
 }
 
+// Hard ceiling on graceful shutdown. If the backend never reports complete
+// (e.g. it was already stopped by the updater before quitAndInstall), the app
+// must still quit — a before-quit that never resolves leaves a windowless
+// zombie process and blocks Squirrel from installing a downloaded update.
+const SHUTDOWN_WAIT_TIMEOUT = "10 seconds";
+
 const requestDesktopShutdownAndWait = Effect.fn("desktop.lifecycle.requestShutdownAndWait")(
   function* (): Effect.fn.Return<void, never, DesktopShutdown> {
     const shutdown = yield* DesktopShutdown;
     yield* shutdown.request;
-    yield* shutdown.awaitComplete;
+    const completed = yield* shutdown.awaitComplete.pipe(
+      Effect.timeoutOption(SHUTDOWN_WAIT_TIMEOUT),
+    );
+    if (Option.isNone(completed)) {
+      yield* logLifecycleError("graceful shutdown timed out — quitting anyway", {
+        timeout: SHUTDOWN_WAIT_TIMEOUT,
+      });
+    }
   },
 );
 
@@ -121,9 +135,14 @@ function handleBeforeQuit(
   void runEffect(
     Effect.gen(function* () {
       const state = yield* DesktopState.DesktopState;
-      yield* Ref.set(state.quitting, true);
+      // If quitting was already set (updater install, signal handler,
+      // relaunch), that path ran its own shutdown — waiting again here can
+      // deadlock the quit (the update-install hang), so let it through.
+      const wasQuitting = yield* Ref.getAndSet(state.quitting, true);
       yield* logLifecycleInfo("before-quit received");
-      yield* requestDesktopShutdownAndWait();
+      if (!wasQuitting) {
+        yield* requestDesktopShutdownAndWait();
+      }
     }).pipe(Effect.withSpan("desktop.lifecycle.beforeQuit")),
   ).finally(() => {
     markQuitAllowed();
