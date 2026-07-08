@@ -131,14 +131,20 @@ button:hover:not(:disabled){background:${hover};}
 button:disabled{opacity:.3;cursor:default;}
 input{flex:1;height:30px;border:none;border-radius:6px;padding:0 12px;font:13px inherit;background:${inputBg};color:inherit;outline:none;}
 input:focus{box-shadow:0 0 0 2px ${focusRing};}
+#protos{display:none;width:auto;padding:0 12px;font-size:12px;font-weight:600;background:${inputBg};border-radius:15px;}
+#protos:hover{background:${hover};}
 </style></head><body>
 <button id="back" title="Back" disabled>&#8249;</button>
 <button id="fwd" title="Forward" disabled>&#8250;</button>
 <button id="reload" title="Reload">&#10227;</button>
 <input id="url" type="text" spellcheck="false" placeholder="URL" />
+<button id="protos" title="Turn prototypes on or off">Prototypes</button>
 <script>
 var api=window.popoutToolbar;
-var back=document.getElementById('back'),fwd=document.getElementById('fwd'),reload=document.getElementById('reload'),url=document.getElementById('url');
+var back=document.getElementById('back'),fwd=document.getElementById('fwd'),reload=document.getElementById('reload'),url=document.getElementById('url'),protos=document.getElementById('protos');
+// The Prototypes button belongs to Real Sortly (the local work-frontend app),
+// not to Quicks or other sites — show it only on the app's dev-server origins.
+function isRealSortly(u){return /^https?:\\/\\/(localhost|127\\.0\\.0\\.1):(8080|8081)([\\/?#]|$)/.test(u||'');}
 var editing=false;
 function normalize(v){v=v.trim();if(!v)return '';if(v.indexOf('://')!==-1)return v;var l=v.toLowerCase();if(l.indexOf('localhost')===0||l.indexOf('127.')===0||l.indexOf('0.0.0.0')===0)return 'http://'+v;return 'https://'+v;}
 back.onclick=function(){api.back();};
@@ -147,7 +153,8 @@ reload.onclick=function(){api.reload();};
 url.addEventListener('focus',function(){editing=true;});
 url.addEventListener('blur',function(){editing=false;});
 url.addEventListener('keydown',function(e){if(e.key==='Enter'){var v=normalize(url.value);if(v){api.navigate(v);}url.blur();}});
-api.onState(function(s){back.disabled=!s.canGoBack;fwd.disabled=!s.canGoForward;if(!editing){url.value=s.url||'';}});
+protos.onclick=function(){api.prototypes();};
+api.onState(function(s){back.disabled=!s.canGoBack;fwd.disabled=!s.canGoForward;if(!editing){url.value=s.url||'';}protos.style.display=isRealSortly(s.url)?'flex':'none';});
 </script></body></html>`;
 }
 
@@ -267,6 +274,15 @@ const make = Effect.gen(function* () {
               wc.reload();
             } else if (action?.type === "navigate" && typeof action.url === "string") {
               void wc.loadURL(action.url).catch(() => undefined);
+            } else if (action?.type === "prototypes") {
+              // Ask the Real Sortly page to open its Prototypes panel. The
+              // panel UI lives in the web app; the toolbar button is just the
+              // door, so it works on any route (Dashboard, Items, …).
+              void wc
+                .executeJavaScript(
+                  "window.dispatchEvent(new CustomEvent('sortly-prototypes:toggle-panel'))",
+                )
+                .catch(() => undefined);
             }
           }),
         ),

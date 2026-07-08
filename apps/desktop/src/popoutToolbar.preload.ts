@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld("popoutToolbar", {
   reload: () => ipcRenderer.send(IpcChannels.POPOUT_NAV_CHANNEL, { type: "reload" }),
   navigate: (url: string) =>
     ipcRenderer.send(IpcChannels.POPOUT_NAV_CHANNEL, { type: "navigate", url }),
+  prototypes: () => ipcRenderer.send(IpcChannels.POPOUT_NAV_CHANNEL, { type: "prototypes" }),
   onState: (listener: (state: BrowserNavigationState) => void) => {
     const handler = (_event: unknown, state: BrowserNavigationState) => listener(state);
     ipcRenderer.on(IpcChannels.POPOUT_STATE_CHANNEL, handler);
