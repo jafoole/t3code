@@ -1,5 +1,5 @@
 import { scopeThreadRef } from "@t3tools/client-runtime";
-import type { ContextMenuItem } from "@t3tools/contracts";
+import type { ContextMenuItem, ScopedThreadRef } from "@t3tools/contracts";
 import { useParams, useRouter } from "@tanstack/react-router";
 import { MoreVerticalIcon } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -51,6 +51,7 @@ export function SortlyQuickList({
   const activeDraftSession = useComposerDraftStore((store) =>
     activeDraftId ? store.getDraftSession(activeDraftId) : null,
   );
+  const activeThreadRef = routeTarget?.kind === "server" ? routeTarget.threadRef : null;
 
   if (quicks.length === 0) {
     return null;
@@ -71,6 +72,7 @@ export function SortlyQuickList({
             key={quick.projectKey}
             quick={quick}
             isActive={activeRouteProjectKey === quick.projectKey || isDraftActive}
+            activeThreadRef={activeThreadRef}
             handleNewThread={handleNewThread}
           />
         );
@@ -82,10 +84,12 @@ export function SortlyQuickList({
 function SortlyQuickRow({
   quick,
   isActive,
+  activeThreadRef,
   handleNewThread,
 }: {
   quick: SidebarProjectSnapshot;
   isActive: boolean;
+  activeThreadRef: ScopedThreadRef | null;
   handleNewThread: HandleNewThread;
 }) {
   const router = useRouter();
@@ -102,13 +106,18 @@ function SortlyQuickRow({
       ),
     ),
   );
-  const newestThread = useMemo(
+  const sortedThreads = useMemo(
     () =>
       [...liveThreads].sort((a, b) =>
         (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt),
-      )[0] ?? null,
+      ),
     [liveThreads],
   );
+  const newestThread = sortedThreads[0] ?? null;
+  // A Quick normally has one conversation, but extra threads can exist (e.g.
+  // started from the project view). Surface them as sub-rows so no work is
+  // ever hidden behind the newest thread.
+  const olderThreads = sortedThreads.slice(1);
   // The thread title is the descriptive name; fall back to the project name for
   // an unsent (empty) Quick that has no thread yet.
   const displayName = newestThread?.title?.trim() || quick.name;
@@ -160,8 +169,9 @@ function SortlyQuickRow({
     }
     // Delete everywhere first: the server prototype (which also pulls it from
     // the gallery) and the local workspace folder — the snapshot's cwd is the
-    // Quick's workspace root. A failure here is surfaced but never blocks the
-    // local project deletion, so the user is never left stranded.
+    // Quick's workspace root. If that fails (offline, server down), abort the
+    // whole delete: the workspace manifest holds the only edit token, so the
+    // Quick must stay in the sidebar for the user to retry later.
     let remoteError: string | null = null;
     try {
       const remote = await window.desktopBridge?.sortlyQuickDelete?.(quick.cwd);
@@ -175,10 +185,11 @@ function SortlyQuickRow({
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: `Couldn't fully delete "${displayName}"`,
+          title: `Couldn't delete "${displayName}"`,
           description: remoteError,
         }),
       );
+      return;
     }
     const draftStore = useComposerDraftStore.getState();
     const projectDraft = draftStore.getDraftThreadByProjectRef(primaryRef);
@@ -203,15 +214,13 @@ function SortlyQuickRow({
         commandId: newCommandId(),
         projectId: primaryRef.projectId,
       });
-      if (!remoteError) {
-        toastManager.add(
-          stackedThreadToast({
-            type: "success",
-            title: `Deleted "${displayName}"`,
-            description: "Deleted — removed from the gallery and server too.",
-          }),
-        );
-      }
+      toastManager.add(
+        stackedThreadToast({
+          type: "success",
+          title: `Deleted "${displayName}"`,
+          description: "Deleted — removed from the gallery and server too.",
+        }),
+      );
     } catch (cause) {
       toastManager.add(
         stackedThreadToast({
@@ -317,31 +326,61 @@ function SortlyQuickRow({
   }
 
   return (
-    <SidebarMenuItem className="group/quick relative">
-      <SidebarMenuButton
-        size="sm"
-        isActive={isActive}
-        className={`${resolveThreadRowClassName({ isActive, isSelected: false })} gap-2 pr-7`}
-        onClick={openQuick}
-        onContextMenu={(event) => {
-          event.preventDefault();
-          void showMenu(event.clientX, event.clientY);
-        }}
-      >
-        <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
-        <span className="flex-1 truncate text-left text-xs">{displayName}</span>
-      </SidebarMenuButton>
-      <button
-        type="button"
-        aria-label={`Actions for ${displayName}`}
-        onClick={(event) => {
-          event.stopPropagation();
-          void showMenu(event.clientX, event.clientY);
-        }}
-        className="absolute top-1/2 right-1.5 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground/60 opacity-0 transition-opacity hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/quick:opacity-100"
-      >
-        <MoreVerticalIcon className="size-3.5" />
-      </button>
-    </SidebarMenuItem>
+    <>
+      <SidebarMenuItem className="group/quick relative">
+        <SidebarMenuButton
+          size="sm"
+          isActive={isActive}
+          className={`${resolveThreadRowClassName({ isActive, isSelected: false })} gap-2 pr-7`}
+          onClick={openQuick}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            void showMenu(event.clientX, event.clientY);
+          }}
+        >
+          <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
+          <span className="flex-1 truncate text-left text-xs">{displayName}</span>
+        </SidebarMenuButton>
+        <button
+          type="button"
+          aria-label={`Actions for ${displayName}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            void showMenu(event.clientX, event.clientY);
+          }}
+          className="absolute top-1/2 right-1.5 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground/60 opacity-0 transition-opacity hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/quick:opacity-100"
+        >
+          <MoreVerticalIcon className="size-3.5" />
+        </button>
+      </SidebarMenuItem>
+      {olderThreads.map((thread) => {
+        const threadTitle = thread.title?.trim() || "Untitled thread";
+        const isThreadActive =
+          activeThreadRef !== null &&
+          activeThreadRef.threadId === thread.id &&
+          activeThreadRef.environmentId === thread.environmentId;
+        return (
+          <SidebarMenuItem key={`${thread.environmentId}:${thread.id}`}>
+            <SidebarMenuButton
+              size="sm"
+              isActive={isThreadActive}
+              className={`${resolveThreadRowClassName({ isActive: isThreadActive, isSelected: false })} gap-2 pl-6`}
+              onClick={() => {
+                void router.navigate({
+                  to: "/$environmentId/$threadId",
+                  params: buildThreadRouteParams(
+                    scopeThreadRef(thread.environmentId, thread.id),
+                  ),
+                });
+              }}
+            >
+              <span className="flex-1 truncate text-left text-xs text-muted-foreground">
+                {threadTitle}
+              </span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        );
+      })}
+    </>
   );
 }

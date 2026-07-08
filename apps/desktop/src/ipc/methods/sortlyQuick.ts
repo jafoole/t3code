@@ -652,13 +652,18 @@ const doDelete = Effect.fn("desktop.ipc.sortlyQuick.doDelete")(function* (
   }
   const fileSystem = yield* FileSystem.FileSystem;
 
-  let serverError: string | null = null;
   const info = yield* readQuickManifest(workspaceRoot);
   const editToken = info === null ? null : parseEditToken(info.editUrl);
   if (info !== null && editToken !== null) {
     const deleted = yield* Effect.result(deleteOnServer(info.id, editToken));
     if (Result.isFailure(deleted)) {
-      serverError = deleted.failure.message;
+      // The manifest in this workspace holds the ONLY copy of the edit token.
+      // If the server delete failed (offline, server down), keep the workspace
+      // so the delete can be retried — removing it here would strand an
+      // undeletable prototype (and gallery entry) on the server forever.
+      return {
+        error: `Couldn't delete it from the server (${deleted.failure.message}). Nothing was removed — check your connection and try again.`,
+      };
     }
   }
 
@@ -667,9 +672,6 @@ const doDelete = Effect.fn("desktop.ipc.sortlyQuick.doDelete")(function* (
   );
   if (Result.isFailure(removed)) {
     return { error: String(removed.failure) };
-  }
-  if (serverError !== null) {
-    return { error: `Removed locally, but the server delete failed: ${serverError}` };
   }
   return { ok: true as const };
 });
