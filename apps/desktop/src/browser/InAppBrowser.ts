@@ -131,7 +131,8 @@ button:hover:not(:disabled){background:${hover};}
 button:disabled{opacity:.3;cursor:default;}
 input{flex:1;height:30px;border:none;border-radius:6px;padding:0 12px;font:13px inherit;background:${inputBg};color:inherit;outline:none;}
 input:focus{box-shadow:0 0 0 2px ${focusRing};}
-#protos{display:none;width:auto;padding:0 12px;font-size:12px;font-weight:600;background:${inputBg};border-radius:15px;}
+#protos{display:none;width:auto;height:30px;padding:0 12px;font-size:13px;font-weight:500;background:${inputBg};
+border:1px solid ${dark ? "#3f3f42" : "#e2e2e5"};border-radius:9px;box-shadow:0 1px 2px rgba(0,0,0,.04);}
 #protos:hover{background:${hover};}
 </style></head><body>
 <button id="back" title="Back" disabled>&#8249;</button>
