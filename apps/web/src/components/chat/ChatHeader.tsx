@@ -196,12 +196,15 @@ function BrowserPopoutButton() {
         render={
           <Button
             className="shrink-0"
-            variant="outline"
+            variant="ghost"
             size="icon-xs"
             aria-label="Open preview in pop-out window"
             onClick={() => focusOrOpenPreviewPopout()}
           >
-            <PictureInPictureIcon className="size-3" />
+            {/* Both the `ghost` and `outline` Button variants force icons to
+                text-muted-foreground; any `text-` class on the svg opts out,
+                matching the foreground-coloured panel toggles next to it. */}
+            <PictureInPictureIcon className="size-3.5 text-foreground" />
           </Button>
         }
       />
