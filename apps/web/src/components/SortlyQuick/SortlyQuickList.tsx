@@ -1,24 +1,27 @@
-import { scopeThreadRef } from "@t3tools/client-runtime";
+import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { ContextMenuItem, ScopedThreadRef } from "@t3tools/contracts";
 import { useParams, useRouter } from "@tanstack/react-router";
 import { MoreVerticalIcon } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useShallow } from "zustand/react/shallow";
 
 import { useComposerDraftStore } from "../../composerDraftStore";
-import { readEnvironmentApi } from "../../environmentApi";
+import {
+  deleteProjectCommand,
+  updateProjectCommand,
+  updateThreadMetadataCommand,
+} from "../../lib/palletRuntime";
 import type { useNewThreadHandler } from "../../hooks/useHandleNewThread";
-import { useSettings } from "../../hooks/useSettings";
+import { useClientSettings } from "../../hooks/useSettings";
 import { newCommandId } from "../../lib/utils";
 import { readLocalApi } from "../../localApi";
 import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
-import { selectSidebarThreadsForProjectRefs, useStore } from "../../store";
+import { useThreadShellsForProjectRefs } from "../../state/entities";
 import { buildThreadRouteParams, resolveThreadRouteTarget } from "../../threadRoutes";
 import { resolveThreadRowClassName } from "../Sidebar.logic";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "../ui/sidebar";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 
-type HandleNewThread = ReturnType<typeof useNewThreadHandler>["handleNewThread"];
+type HandleNewThread = ReturnType<typeof useNewThreadHandler>;
 
 interface SortlyQuickListProps {
   quicks: readonly SidebarProjectSnapshot[];
@@ -99,12 +102,10 @@ function SortlyQuickRow({
   // A Quick has one conversation. Reactively track its newest live thread so
   // the row shows the same descriptive name as the header (the thread title) —
   // not the static "Quick — <date>" project name.
-  const liveThreads = useStore(
-    useShallow((state) =>
-      selectSidebarThreadsForProjectRefs(state, quick.memberProjectRefs).filter(
-        (thread) => thread.archivedAt === null,
-      ),
-    ),
+  const threadShells = useThreadShellsForProjectRefs(quick.memberProjectRefs);
+  const liveThreads = useMemo(
+    () => threadShells.filter((thread) => thread.archivedAt === null),
+    [threadShells],
   );
   const sortedThreads = useMemo(
     () =>
@@ -120,9 +121,9 @@ function SortlyQuickRow({
   const olderThreads = sortedThreads.slice(1);
   // The thread title is the descriptive name; fall back to the project name for
   // an unsent (empty) Quick that has no thread yet.
-  const displayName = newestThread?.title?.trim() || quick.name;
+  const displayName = newestThread?.title?.trim() || quick.displayName;
   const [draftName, setDraftName] = useState(displayName);
-  const confirmThreadDelete = useSettings((settings) => settings.confirmThreadDelete);
+  const confirmThreadDelete = useClientSettings((settings) => settings.confirmThreadDelete);
 
   // Open the Quick's single conversation: its newest live thread, or its
   // pending draft if it hasn't been sent yet, or a fresh thread as a fallback.
@@ -174,7 +175,7 @@ function SortlyQuickRow({
     // Quick must stay in the sidebar for the user to retry later.
     let remoteError: string | null = null;
     try {
-      const remote = await window.desktopBridge?.sortlyQuickDelete?.(quick.cwd);
+      const remote = await window.desktopBridge?.sortlyQuickDelete?.(quick.workspaceRoot);
       if (remote && "error" in remote) {
         remoteError = remote.error;
       }
@@ -197,20 +198,8 @@ function SortlyQuickRow({
       draftStore.clearDraftThread(projectDraft.draftId);
     }
     draftStore.clearProjectDraftThreadId(primaryRef);
-    const api = readEnvironmentApi(primaryRef.environmentId);
-    if (!api) {
-      toastManager.add(
-        stackedThreadToast({
-          type: "error",
-          title: `Failed to delete "${displayName}"`,
-          description: "No backend connection — please try again.",
-        }),
-      );
-      return;
-    }
     try {
-      await api.orchestration.dispatchCommand({
-        type: "project.delete",
+      await deleteProjectCommand(primaryRef.environmentId, {
         commandId: newCommandId(),
         projectId: primaryRef.projectId,
       });
@@ -242,10 +231,7 @@ function SortlyQuickRow({
       // Rename the thread (its title is what the row + header show). For an
       // unsent Quick with no thread yet, rename the project instead.
       if (newestThread) {
-        const api = readEnvironmentApi(newestThread.environmentId);
-        if (!api) return;
-        await api.orchestration.dispatchCommand({
-          type: "thread.meta.update",
+        await updateThreadMetadataCommand(newestThread.environmentId, {
           commandId: newCommandId(),
           threadId: newestThread.id,
           title: next,
@@ -254,18 +240,15 @@ function SortlyQuickRow({
         // gallery (the publish POST is idempotent and patches the name
         // server-side). Failures are swallowed — the rename itself succeeded.
         try {
-          const state = await window.desktopBridge?.sortlyQuickPublishState?.(quick.cwd);
+          const state = await window.desktopBridge?.sortlyQuickPublishState?.(quick.workspaceRoot);
           if (state?.isPublic) {
-            await window.desktopBridge?.sortlyQuickPublish?.(quick.cwd, true, next);
+            await window.desktopBridge?.sortlyQuickPublish?.(quick.workspaceRoot, true, next);
           }
         } catch {
           // Best-effort only — never surface gallery sync failures on rename.
         }
       } else if (primaryRef) {
-        const api = readEnvironmentApi(primaryRef.environmentId);
-        if (!api) return;
-        await api.orchestration.dispatchCommand({
-          type: "project.meta.update",
+        await updateProjectCommand(primaryRef.environmentId, {
           commandId: newCommandId(),
           projectId: primaryRef.projectId,
           title: next,

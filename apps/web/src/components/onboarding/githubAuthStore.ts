@@ -1,10 +1,11 @@
 import { create } from "zustand";
 import { DEFAULT_MODEL, ProviderInstanceId, type GithubUser } from "@t3tools/contracts";
 import {
-  waitForSavedEnvironmentRegistryHydration,
-} from "../../environments/runtime";
-import { getPrimaryEnvironmentConnection } from "../../environments/runtime";
-import { selectProjectsAcrossEnvironments, useStore } from "../../store";
+  createProjectCommand,
+  readPrimaryEnvironmentId,
+  readProjectsAcrossEnvironments,
+  waitForPrimaryEnvironment,
+} from "../../lib/palletRuntime";
 import { findProjectByPath } from "../../lib/projectPaths";
 import { newCommandId, newProjectId } from "../../lib/utils";
 import { stackedThreadToast, toastManager } from "../ui/toast";
@@ -89,8 +90,8 @@ async function runDemoSignIn(): Promise<void> {
 }
 
 async function ensureSortlyProject(destPath: string, title = "Sortly Prototypes"): Promise<void> {
-  const conn = getPrimaryEnvironmentConnection();
-  if (!conn) return;
+  const environmentId = readPrimaryEnvironmentId();
+  if (!environmentId) return;
 
   // Auto-create at most once per environment+path. The in-memory project store
   // hydrates from the server asynchronously, so at bootstrap it's often still
@@ -98,7 +99,7 @@ async function ensureSortlyProject(destPath: string, title = "Sortly Prototypes"
   // duplicate on nearly every launch (that's how 100+ "Sortly Prototypes" dupes
   // piled up). A persisted marker removes the race AND means a project the user
   // deliberately deleted is never silently resurrected.
-  const ensuredKey = `pallet:auto-ensured-project:${conn.environmentId}:${destPath}`;
+  const ensuredKey = `pallet:auto-ensured-project:${environmentId}:${destPath}`;
   try {
     if (localStorage.getItem(ensuredKey)) return;
     // Claim synchronously (no await before this) so a double-invoked bootstrap
@@ -116,8 +117,8 @@ async function ensureSortlyProject(destPath: string, title = "Sortly Prototypes"
     }
   };
 
-  const projects = selectProjectsAcrossEnvironments(useStore.getState()).filter(
-    (p) => p.environmentId === conn.environmentId,
+  const projects = readProjectsAcrossEnvironments().filter(
+    (p) => p.environmentId === environmentId,
   );
 
   const existing = findProjectByPath(projects, destPath);
@@ -126,8 +127,7 @@ async function ensureSortlyProject(destPath: string, title = "Sortly Prototypes"
     return;
   }
 
-  await conn.client.orchestration.dispatchCommand({
-    type: "project.create",
+  await createProjectCommand(environmentId, {
     commandId: newCommandId(),
     projectId: newProjectId(),
     title,
@@ -232,7 +232,7 @@ export const useGithubAuthStore = create<GithubAuthState>()((set) => ({
     try {
       const [storedState] = await Promise.all([
         bridge.githubAuthGetStoredState(),
-        waitForSavedEnvironmentRegistryHydration(),
+        waitForPrimaryEnvironment(),
       ]);
 
       if (storedState.token) {

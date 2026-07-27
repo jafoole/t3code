@@ -1,7 +1,7 @@
 import { DEFAULT_MODEL, ProviderInstanceId, type ScopedProjectRef } from "@t3tools/contracts";
-import { scopeProjectRef } from "@t3tools/client-runtime";
+import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 
-import { getPrimaryEnvironmentConnection } from "../../environments/runtime";
+import { createProjectCommand, readPrimaryEnvironmentId } from "../../lib/palletRuntime";
 import { newCommandId, newProjectId } from "../../lib/utils";
 
 export const QUICKS_PATH_SEGMENT = "/Sortly Quicks/";
@@ -28,8 +28,8 @@ export async function createSortlyQuick(
     return { error: "Sortly Quick requires the Pallet desktop app." };
   }
 
-  const conn = getPrimaryEnvironmentConnection();
-  if (!conn) {
+  const environmentId = readPrimaryEnvironmentId();
+  if (!environmentId) {
     return { error: "No backend connection yet — try again in a moment." };
   }
 
@@ -39,8 +39,7 @@ export async function createSortlyQuick(
   }
 
   const projectId = newProjectId();
-  await conn.client.orchestration.dispatchCommand({
-    type: "project.create",
+  await createProjectCommand(environmentId, {
     commandId: newCommandId(),
     projectId,
     title: created.name,
@@ -54,7 +53,7 @@ export async function createSortlyQuick(
   });
 
   return {
-    projectRef: scopeProjectRef(conn.environmentId, projectId),
+    projectRef: scopeProjectRef(environmentId, projectId),
     editUrl: created.editUrl,
   };
 }

@@ -4,7 +4,7 @@ import {
   type SortlyQuickPublishResult,
   type ThreadId,
 } from "@t3tools/contracts";
-import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime";
+import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { useEffect, useState } from "react";
 import {
   CheckIcon,
@@ -14,12 +14,11 @@ import {
   Share2Icon,
   SparklesIcon,
 } from "lucide-react";
-import { useShallow } from "zustand/react/shallow";
 
 import { useComposerDraftStore, type DraftId } from "~/composerDraftStore";
 import { useNewThreadHandler } from "../../hooks/useHandleNewThread";
 import { NEW_THREAD_PLACEHOLDER_TITLE } from "../ChatView.logic";
-import { selectProjectsAcrossEnvironments, useStore } from "../../store";
+import { useProjects } from "../../state/entities";
 import { Button } from "../ui/button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -90,8 +89,8 @@ export function QuickHeaderActions({
   // Guards "Make it real" against double-clicks while it resolves the target
   // project and navigates away.
   const [makeItRealWorking, setMakeItRealWorking] = useState(false);
-  const projects = useStore(useShallow((store) => selectProjectsAcrossEnvironments(store)));
-  const { handleNewThread } = useNewThreadHandler();
+  const projects = useProjects();
+  const handleNewThread = useNewThreadHandler();
 
   useEffect(() => {
     setShareInfoSettled(false);
@@ -156,7 +155,7 @@ export function QuickHeaderActions({
     setMakeItRealWorking(true);
     try {
       const prototypesProject = projects.find((project) =>
-        project.cwd.endsWith(PROTOTYPES_CWD_SUFFIX),
+        project.workspaceRoot.endsWith(PROTOTYPES_CWD_SUFFIX),
       );
       if (!prototypesProject) {
         toastManager.add(

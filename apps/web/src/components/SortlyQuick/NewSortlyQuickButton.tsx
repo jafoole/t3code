@@ -12,7 +12,7 @@ import { createSortlyQuick, defaultQuickName } from "./createSortlyQuick";
  * opens a fresh thread in it, and pops the canvas to the prototype.
  */
 export function NewSortlyQuickButton() {
-  const { handleNewThread } = useNewThreadHandler();
+  const handleNewThread = useNewThreadHandler();
   const [busy, setBusy] = useState(false);
 
   const showCreateError = (description: string) => {
