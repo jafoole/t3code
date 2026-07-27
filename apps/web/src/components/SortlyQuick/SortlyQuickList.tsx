@@ -1,6 +1,7 @@
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
 import type { ContextMenuItem, ScopedThreadRef } from "@t3tools/contracts";
-import { useParams, useRouter } from "@tanstack/react-router";
+import { Link, useParams, useRouter } from "@tanstack/react-router";
 import { MoreVerticalIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -15,13 +16,16 @@ import { useClientSettings } from "../../hooks/useSettings";
 import { newCommandId } from "../../lib/utils";
 import { readLocalApi } from "../../localApi";
 import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
-import { useThreadShellsForProjectRefs } from "../../state/entities";
 import { buildThreadRouteParams, resolveThreadRouteTarget } from "../../threadRoutes";
 import { resolveThreadRowClassName } from "../Sidebar.logic";
+import { resolveQuickActivity, useQuickActivityIndex } from "./quickActivity";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "../ui/sidebar";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 
 type HandleNewThread = ReturnType<typeof useNewThreadHandler>;
+
+/** Keep the sidebar section short; everything else lives on the /quicks page. */
+const SIDEBAR_QUICK_LIMIT = 6;
 
 interface SortlyQuickListProps {
   quicks: readonly SidebarProjectSnapshot[];
@@ -56,13 +60,31 @@ export function SortlyQuickList({
   );
   const activeThreadRef = routeTarget?.kind === "server" ? routeTarget.threadRef : null;
 
+  // One hook call for every Quick, not one per row: the parent needs each
+  // Quick's last activity to order and truncate the list, and that lives in the
+  // threads. Memoized because `refs` keys an Atom.family.
+  const allRefs = useMemo(() => quicks.flatMap((quick) => quick.memberProjectRefs), [quicks]);
+  const activityIndex = useQuickActivityIndex(allRefs);
+
+  const ordered = useMemo(() => {
+    return quicks
+      .map((quick) => ({
+        quick,
+        activity: resolveQuickActivity(activityIndex, quick.memberProjectRefs, quick.createdAt),
+      }))
+      .sort((a, b) => b.activity.sortKey.localeCompare(a.activity.sortKey));
+  }, [quicks, activityIndex]);
+
   if (quicks.length === 0) {
     return null;
   }
 
+  const visible = ordered.slice(0, SIDEBAR_QUICK_LIMIT);
+  const hiddenCount = ordered.length - visible.length;
+
   return (
     <SidebarMenu className="gap-0.5 px-2 pb-1">
-      {quicks.map((quick) => {
+      {visible.map(({ quick, activity }) => {
         const isDraftActive =
           activeDraftSession != null &&
           quick.memberProjectRefs.some(
@@ -74,23 +96,42 @@ export function SortlyQuickList({
           <SortlyQuickRow
             key={quick.projectKey}
             quick={quick}
+            threads={activity.threads}
             isActive={activeRouteProjectKey === quick.projectKey || isDraftActive}
             activeThreadRef={activeThreadRef}
             handleNewThread={handleNewThread}
           />
         );
       })}
+      {hiddenCount > 0 && <ViewAllQuicksRow total={ordered.length} />}
     </SidebarMenu>
+  );
+}
+
+function ViewAllQuicksRow({ total }: { total: number }) {
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        className="h-7 justify-between text-xs text-muted-foreground hover:text-foreground"
+        render={<Link to="/quicks" />}
+      >
+        <span>View all</span>
+        <span className="text-[10px] tabular-nums text-muted-foreground/70">{total}</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }
 
 function SortlyQuickRow({
   quick,
+  threads,
   isActive,
   activeThreadRef,
   handleNewThread,
 }: {
   quick: SidebarProjectSnapshot;
+  /** Live threads for this Quick, newest first — resolved once by the parent. */
+  threads: readonly EnvironmentThreadShell[];
   isActive: boolean;
   activeThreadRef: ScopedThreadRef | null;
   handleNewThread: HandleNewThread;
@@ -99,21 +140,9 @@ function SortlyQuickRow({
   const [renaming, setRenaming] = useState(false);
   const primaryRef = quick.memberProjectRefs[0];
 
-  // A Quick has one conversation. Reactively track its newest live thread so
-  // the row shows the same descriptive name as the header (the thread title) —
-  // not the static "Quick — <date>" project name.
-  const threadShells = useThreadShellsForProjectRefs(quick.memberProjectRefs);
-  const liveThreads = useMemo(
-    () => threadShells.filter((thread) => thread.archivedAt === null),
-    [threadShells],
-  );
-  const sortedThreads = useMemo(
-    () =>
-      [...liveThreads].sort((a, b) =>
-        (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt),
-      ),
-    [liveThreads],
-  );
+  // A Quick has one conversation; the newest thread's title is the descriptive
+  // name shown in the row (not the static "Quick — <date>" project name).
+  const sortedThreads = threads;
   const newestThread = sortedThreads[0] ?? null;
   // A Quick normally has one conversation, but extra threads can exist (e.g.
   // started from the project view). Surface them as sub-rows so no work is

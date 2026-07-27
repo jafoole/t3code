@@ -11,7 +11,12 @@ import { createSortlyQuick, defaultQuickName } from "./createSortlyQuick";
  * registers a local workspace project (with the MCP connection prewired),
  * opens a fresh thread in it, and pops the canvas to the prototype.
  */
-export function NewSortlyQuickButton() {
+/**
+ * The Quick-creation flow, without any chrome — shared by the sidebar button
+ * and the "New" button on the /quicks page so the error handling and the
+ * canvas-popping navigation stay in one place.
+ */
+export function useCreateQuick(): { create: () => Promise<void>; busy: boolean } {
   const handleNewThread = useNewThreadHandler();
   const [busy, setBusy] = useState(false);
 
@@ -44,6 +49,12 @@ export function NewSortlyQuickButton() {
     }
   };
 
+  return { create: handleClick, busy };
+}
+
+export function NewSortlyQuickButton() {
+  const { create, busy } = useCreateQuick();
+
   return (
     <SidebarGroup className="px-2 pt-1 pb-0">
       <div className="mb-1 flex items-center justify-between pl-2 pr-1.5">
@@ -56,7 +67,7 @@ export function NewSortlyQuickButton() {
           <SidebarMenuButton
             size="sm"
             disabled={busy}
-            onClick={() => void handleClick()}
+            onClick={() => void create()}
             className="gap-2 px-2 py-1.5 text-muted-foreground/70 hover:bg-accent hover:text-foreground"
             data-testid="new-sortly-quick-trigger"
           >
