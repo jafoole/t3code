@@ -1,4 +1,4 @@
-import { DEFAULT_MODEL, ProviderInstanceId, type ScopedProjectRef } from "@t3tools/contracts";
+import type { ModelSelection, ScopedProjectRef } from "@t3tools/contracts";
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 
 import { createProjectCommand, readPrimaryEnvironmentId } from "../../lib/palletRuntime";
@@ -22,6 +22,14 @@ export function defaultQuickName(now = new Date()): string {
 
 export async function createSortlyQuick(
   name: string,
+  /**
+   * Provider the new Quick's project defaults to. Passed in rather than
+   * hardcoded: the project default propagates to the Quick's thread, so
+   * assuming a driver here silently starts every Quick on it — and hard-fails
+   * with `ProviderValidationError` if the user has that provider disabled.
+   * Resolved from actually-enabled providers by `useCreateQuick`.
+   */
+  defaultModelSelection: ModelSelection,
 ): Promise<{ projectRef: ScopedProjectRef; editUrl: string } | { error: string }> {
   const bridge = window.desktopBridge;
   if (!bridge?.sortlyQuickCreate) {
@@ -45,10 +53,7 @@ export async function createSortlyQuick(
     title: created.name,
     workspaceRoot: created.path,
     createWorkspaceRootIfMissing: false,
-    defaultModelSelection: {
-      instanceId: ProviderInstanceId.make("codex"),
-      model: DEFAULT_MODEL,
-    },
+    defaultModelSelection,
     createdAt: new Date().toISOString(),
   });
 
