@@ -105,31 +105,16 @@ contextBridge.exposeInMainWorld("desktopBridge", {
       ...(position === undefined ? {} : { position }),
     }),
   openExternal: (url: string) => ipcRenderer.invoke(IpcChannels.OPEN_EXTERNAL_CHANNEL, url),
-  browserShow: (input) => ipcRenderer.invoke(IpcChannels.BROWSER_SHOW_CHANNEL, input),
-  browserHide: () => ipcRenderer.invoke(IpcChannels.BROWSER_HIDE_CHANNEL),
-  browserSetBounds: (bounds) => {
-    ipcRenderer.send(IpcChannels.BROWSER_SET_BOUNDS_CHANNEL, bounds);
-  },
-  browserNavigate: (url: string) => ipcRenderer.invoke(IpcChannels.BROWSER_NAVIGATE_CHANNEL, url),
-  browserBack: () => ipcRenderer.invoke(IpcChannels.BROWSER_BACK_CHANNEL),
-  browserForward: () => ipcRenderer.invoke(IpcChannels.BROWSER_FORWARD_CHANNEL),
-  browserReload: () => ipcRenderer.invoke(IpcChannels.BROWSER_RELOAD_CHANNEL),
-  browserOpenPopout: (url: string, options?: { readonly focus?: boolean }) =>
+  browserOpenPopout: (
+    url: string,
+    options?: { readonly focus?: boolean; readonly focusExisting?: boolean },
+  ) =>
     ipcRenderer.invoke(IpcChannels.BROWSER_OPEN_POPOUT_CHANNEL, {
       url,
       ...(options?.focus === undefined ? {} : { focus: options.focus }),
+      ...(options?.focusExisting === undefined ? {} : { focusExisting: options.focusExisting }),
     }),
   browserFocusPopout: () => ipcRenderer.invoke(IpcChannels.BROWSER_FOCUS_POPOUT_CHANNEL),
-  onBrowserState: (listener) => {
-    const wrapped = (_event: Electron.IpcRendererEvent, state: unknown) => {
-      if (typeof state !== "object" || state === null) return;
-      listener(state as Parameters<typeof listener>[0]);
-    };
-    ipcRenderer.on(IpcChannels.BROWSER_STATE_CHANNEL, wrapped);
-    return () => {
-      ipcRenderer.removeListener(IpcChannels.BROWSER_STATE_CHANNEL, wrapped);
-    };
-  },
   onExternalLinkRequest: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, url: unknown) => {
       if (typeof url !== "string") return;

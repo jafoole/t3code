@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
-import { useBrowserPanelStore } from "../Browser/browserPanelStore";
+import { usePreviewUrlStore } from "../Browser/previewUrlStore";
+import { openPreviewPopout } from "../Browser/openPreview";
 import { Switch } from "../ui/switch";
 import { MOCK_PROTOTYPES, type MockPrototype } from "./mockPrototypes";
 import { usePrototypesPanelStore } from "./prototypesPanelStore";
@@ -21,16 +22,11 @@ export function PrototypesPanel() {
     const willEnable = !enabled.has(prototype.id);
     togglePrototype(prototype.id);
     if (willEnable && prototype.location !== "site-wide") {
-      const browserStore = useBrowserPanelStore.getState();
-      const currentUrl = browserStore.url;
+      const currentUrl = usePreviewUrlStore.getState().url;
       try {
         const base = currentUrl ? new URL(currentUrl) : new URL("http://localhost:3000");
         base.pathname = prototype.location;
-        const next = base.toString();
-        browserStore.setUrl(next);
-        browserStore.setOpen(true);
-        // Drive the in-app browser if it's already open.
-        void window.desktopBridge?.browserNavigate?.(next);
+        openPreviewPopout(base.toString());
       } catch {
         // ignore URL parse failures
       }

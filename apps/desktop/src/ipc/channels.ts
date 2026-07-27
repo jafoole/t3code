@@ -38,14 +38,6 @@ export const SET_WSL_DISTRO_CHANNEL = "desktop:set-wsl-distro";
 export const SET_WSL_ONLY_CHANNEL = "desktop:set-wsl-only";
 export const SSH_PASSWORD_PROMPT_CANCELLED_RESULT = "ssh-password-prompt-cancelled";
 
-export const BROWSER_SHOW_CHANNEL = "desktop:browser-show";
-export const BROWSER_HIDE_CHANNEL = "desktop:browser-hide";
-export const BROWSER_SET_BOUNDS_CHANNEL = "desktop:browser-set-bounds";
-export const BROWSER_NAVIGATE_CHANNEL = "desktop:browser-navigate";
-export const BROWSER_BACK_CHANNEL = "desktop:browser-back";
-export const BROWSER_FORWARD_CHANNEL = "desktop:browser-forward";
-export const BROWSER_RELOAD_CHANNEL = "desktop:browser-reload";
-export const BROWSER_STATE_CHANNEL = "desktop:browser-state";
 export const BROWSER_EXTERNAL_LINK_CHANNEL = "desktop:browser-external-link";
 export const BROWSER_OPEN_POPOUT_CHANNEL = "desktop:browser-open-popout";
 export const BROWSER_FOCUS_POPOUT_CHANNEL = "desktop:browser-focus-popout";

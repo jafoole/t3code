@@ -2,8 +2,7 @@ import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import { useAtomValue } from "@effect/atom-react";
 import { useEffect } from "react";
 
-import { BrowserPanel } from "../components/Browser/BrowserPanel";
-import { useBrowserPanelStore } from "../components/Browser/browserPanelStore";
+import { openPreviewPopout } from "../components/Browser/openPreview";
 import { isCommandPaletteOpen } from "../commandPaletteContext";
 import { dispatchPreviewAction } from "../components/preview/previewActionBus";
 import { useHandleNewThread } from "../hooks/useHandleNewThread";
@@ -161,14 +160,12 @@ function ExternalLinkRouter() {
         const target = getClientSettings().defaultLinkTarget;
         const isInAppLoadable = /^https?:\/\//i.test(url) || /^file:\/\//i.test(url);
         if (target === "in-app" && isInAppLoadable) {
-          useBrowserPanelStore.getState().setUrl(url);
-          useBrowserPanelStore.getState().setOpen(true);
+          openPreviewPopout(url);
           return;
         }
         // file:// is never sent to the system browser path (only http(s) is safe there).
         if (/^file:\/\//i.test(url)) {
-          useBrowserPanelStore.getState().setUrl(url);
-          useBrowserPanelStore.getState().setOpen(true);
+          openPreviewPopout(url);
           return;
         }
         await bridge.openExternal(url);
@@ -187,7 +184,6 @@ function ChatRouteLayout() {
         <div className="flex min-w-0 flex-1">
           <Outlet />
         </div>
-        <BrowserPanel />
       </div>
     </>
   );

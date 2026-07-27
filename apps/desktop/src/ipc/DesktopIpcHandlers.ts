@@ -41,14 +41,8 @@ import {
   showContextMenu,
 } from "./methods/window.ts";
 import {
-  browserBack,
   browserFocusPopout,
-  browserForward,
-  browserHide,
-  browserNavigate,
   browserOpenPopout,
-  browserReload,
-  browserShow,
 } from "./methods/browser.ts";
 import {
   githubAuthGetStoredState,
@@ -106,12 +100,6 @@ export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers"
   yield* ipc.handle(showContextMenu);
   yield* ipc.handle(openExternal);
 
-  yield* ipc.handle(browserShow);
-  yield* ipc.handle(browserHide);
-  yield* ipc.handle(browserNavigate);
-  yield* ipc.handle(browserBack);
-  yield* ipc.handle(browserForward);
-  yield* ipc.handle(browserReload);
   yield* ipc.handle(browserOpenPopout);
   yield* ipc.handle(browserFocusPopout);
 

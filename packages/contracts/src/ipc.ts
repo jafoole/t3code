@@ -158,6 +158,13 @@ export interface BrowserOpenPopoutOptions {
    * behind the main window. Defaults to true (focused, on top).
    */
   readonly focus?: boolean;
+  /**
+   * When true, an already-open pop-out is shown and focused WITHOUT being
+   * re-navigated to `url`. Used by the header button so re-opening never
+   * throws away what the window is currently showing (e.g. a Sortly Quick
+   * canvas the user navigated away from).
+   */
+  readonly focusExisting?: boolean;
 }
 
 
@@ -486,30 +493,6 @@ export interface PickFolderOptions {
 export const PickFolderOptionsSchema = Schema.Struct({
   initialPath: Schema.optionalKey(Schema.NullOr(Schema.String)),
   targetEnvironmentId: Schema.optionalKey(Schema.String),
-});
-
-export interface BrowserBounds {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export const BrowserBoundsSchema = Schema.Struct({
-  x: Schema.Number,
-  y: Schema.Number,
-  width: Schema.Number,
-  height: Schema.Number,
-});
-
-export interface BrowserShowInput {
-  url: string;
-  bounds: BrowserBounds;
-}
-
-export const BrowserShowInputSchema = Schema.Struct({
-  url: Schema.String,
-  bounds: BrowserBoundsSchema,
 });
 
 export interface BrowserNavigationState {
@@ -1082,16 +1065,8 @@ export interface DesktopBridge {
     position?: { x: number; y: number },
   ) => Promise<T | null>;
   openExternal: (url: string) => Promise<boolean>;
-  browserShow: (input: BrowserShowInput) => Promise<void>;
-  browserHide: () => Promise<void>;
-  browserSetBounds: (bounds: BrowserBounds) => void;
-  browserNavigate: (url: string) => Promise<void>;
-  browserBack: () => Promise<void>;
-  browserForward: () => Promise<void>;
-  browserReload: () => Promise<void>;
   browserOpenPopout: (url: string, options?: BrowserOpenPopoutOptions) => Promise<void>;
   browserFocusPopout: () => Promise<void>;
-  onBrowserState: (listener: (state: BrowserNavigationState) => void) => () => void;
   onExternalLinkRequest: (listener: (url: string) => void) => () => void;
   onMenuAction: (listener: (action: string) => void) => () => void;
   getUpdateState: () => Promise<DesktopUpdateState>;

@@ -1,6 +1,6 @@
 import type { ContextMenuItem, LocalApi } from "@t3tools/contracts";
 
-import { useBrowserPanelStore } from "./components/Browser/browserPanelStore";
+import { openPreviewPopout } from "./components/Browser/openPreview";
 import { getClientSettings } from "./hooks/useSettings";
 import { resetRequestLatencyStateForTests } from "./rpc/requestLatencyState";
 import { showContextMenuFallback } from "./contextMenuFallback";
@@ -34,8 +34,7 @@ function createBrowserLocalApi(): LocalApi {
           const isFile = /^file:\/\//i.test(url);
           const isHttp = /^https?:\/\//i.test(url);
           if ((preferInApp && (isHttp || isFile)) || isFile) {
-            useBrowserPanelStore.getState().setUrl(url);
-            useBrowserPanelStore.getState().setOpen(true);
+            openPreviewPopout(url);
             return;
           }
           const opened = await window.desktopBridge.openExternal(url);

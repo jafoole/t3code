@@ -205,7 +205,7 @@ import { ExpandedImageDialog } from "./chat/ExpandedImageDialog";
 import { PullRequestThreadDialog } from "./PullRequestThreadDialog";
 import { MessagesTimeline } from "./chat/MessagesTimeline";
 import { ChatHeader } from "./chat/ChatHeader";
-import { useBrowserPanelStore } from "./Browser/browserPanelStore";
+import { usePreviewUrlStore } from "./Browser/previewUrlStore";
 import { isSortlyQuickWorkspace } from "./SortlyQuick/createSortlyQuick";
 import { useQuickBuildPopout } from "./SortlyQuick/useQuickBuildPopout";
 import { openPreviewPopout } from "./Browser/openPreview";
@@ -1432,7 +1432,7 @@ function ChatViewContent(props: ChatViewProps) {
     ? `${activeProjectRef.environmentId}/${activeProjectRef.projectId}`
     : null;
   useEffect(() => {
-    useBrowserPanelStore.getState().setScopeKey(activeProjectScopeKey);
+    usePreviewUrlStore.getState().setScopeKey(activeProjectScopeKey);
   }, [activeProjectScopeKey]);
 
   // Sortly Quick projects: auto-open the canvas on the prototype's edit URL.

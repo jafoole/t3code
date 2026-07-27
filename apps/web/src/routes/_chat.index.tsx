@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { LinkIcon, PlusIcon } from "lucide-react";
 import { useEffect } from "react";
 
-import { useBrowserPanelStore } from "../components/Browser/browserPanelStore";
+import { usePreviewUrlStore } from "../components/Browser/previewUrlStore";
 import { NoActiveThreadState } from "../components/NoActiveThreadState";
 import { Button } from "../components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../components/ui/empty";
@@ -19,7 +19,7 @@ function ChatIndexRouteView() {
 
   // No active project on this route → clear panel scope.
   useEffect(() => {
-    useBrowserPanelStore.getState().setScopeKey(null);
+    usePreviewUrlStore.getState().setScopeKey(null);
   }, []);
 
   if (authGateState.status === "hosted-static" && environments.length === 0) {

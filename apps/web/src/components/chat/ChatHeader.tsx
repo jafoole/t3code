@@ -17,13 +17,9 @@ import ProjectScriptsControl, {
 import { OpenInPicker } from "./OpenInPicker";
 import { usePrimaryEnvironmentId } from "../../state/environments";
 import { cn } from "~/lib/utils";
-import { ChevronDownIcon, LayersIcon } from "lucide-react";
-import { BrowserPanelToggleIcon } from "../Browser/BrowserPanelToggleIcon";
-import { useBrowserPanelStore } from "../Browser/browserPanelStore";
-import { openPreviewPopout, openPreviewSidePanel } from "../Browser/openPreview";
+import { LayersIcon, PictureInPicture as PictureInPictureIcon } from "lucide-react";
+import { focusOrOpenPreviewPopout } from "../Browser/openPreview";
 import { Button } from "../ui/button";
-import { Group } from "../ui/group";
-import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { Toggle } from "../ui/toggle";
 import {
   usePrototypesPanelStore,
@@ -152,7 +148,7 @@ export const ChatHeader = memo(function ChatHeader({
             {...(draftId ? { draftId } : {})}
           />
         )}
-        <BrowserPanelToggle />
+        <BrowserPopoutButton />
       </div>
     </div>
   );
@@ -188,44 +184,28 @@ function PrototypesPanelToggle() {
   );
 }
 
-function BrowserPanelToggle() {
-  const url = useBrowserPanelStore((s) => s.url);
+// Single action: open the pop-out browser, or focus it if a window is already
+// live. `focusExisting` keeps the reuse path from re-navigating a window the
+// user may have moved on — notably the Sortly Quick canvas. Upstream's
+// "Open a Surface → Browser" covers the separate intent of opening something
+// new in a panel tab, so this needs no dropdown.
+function BrowserPopoutButton() {
   return (
-    <Group className="flex shrink-0 items-center">
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              className="rounded-r-none border-r-0"
-              variant="outline"
-              size="icon-xs"
-              aria-label="Open browser preview in pop-up window"
-              onClick={() => openPreviewPopout(url)}
-            >
-              <BrowserPanelToggleIcon open={false} />
-            </Button>
-          }
-        />
-        <TooltipPopup side="bottom">Open preview (pop-up window)</TooltipPopup>
-      </Tooltip>
-      <Menu>
-        <MenuTrigger
-          render={
-            <Button
-              className="rounded-l-none px-1"
-              variant="outline"
-              size="icon-xs"
-              aria-label="Browser preview options"
-            />
-          }
-        >
-          <ChevronDownIcon className="size-3" />
-        </MenuTrigger>
-        <MenuPopup align="end">
-          <MenuItem onClick={() => openPreviewPopout(url)}>Open in pop-up window</MenuItem>
-          <MenuItem onClick={() => openPreviewSidePanel()}>Open in side panel</MenuItem>
-        </MenuPopup>
-      </Menu>
-    </Group>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            className="shrink-0"
+            variant="outline"
+            size="icon-xs"
+            aria-label="Open preview in pop-out window"
+            onClick={() => focusOrOpenPreviewPopout()}
+          >
+            <PictureInPictureIcon className="size-3" />
+          </Button>
+        }
+      />
+      <TooltipPopup side="bottom">Open preview window</TooltipPopup>
+    </Tooltip>
   );
 }
