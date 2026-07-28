@@ -49,7 +49,14 @@ export function useCreateQuick(): { create: () => Promise<void>; busy: boolean }
         candidates.find((provider) => settings.providerModelPreferences?.[provider.instanceId]) ??
         candidates[0];
       if (!chosen) {
-        showCreateError("No provider is enabled. Turn one on in Settings → Providers.");
+        // While the backend is still connecting, `providers` is simply empty —
+        // that's a transient condition, not a settings problem. Don't send the
+        // user to Settings for it.
+        showCreateError(
+          providers.length === 0
+            ? "Still connecting to the backend — try again in a moment."
+            : "No provider is enabled. Turn one on in Settings → Providers.",
+        );
         return;
       }
       const model =

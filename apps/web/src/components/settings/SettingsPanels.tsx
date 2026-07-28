@@ -785,7 +785,7 @@ export function GeneralSettingsPanel() {
 
         <SettingsRow
           title="Open links in"
-          description="Where to open external links — the built-in browser panel, or your system browser."
+          description="Where to open external links — the built-in pop-out browser, or your system browser."
           resetAction={
             settings.defaultLinkTarget !== DEFAULT_UNIFIED_SETTINGS.defaultLinkTarget ? (
               <SettingResetButton

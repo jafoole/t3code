@@ -198,7 +198,7 @@ function BrowserPopoutButton() {
             className="shrink-0"
             variant="ghost"
             size="icon-xs"
-            aria-label="Open preview in pop-out window"
+            aria-label="Open preview window"
             onClick={() => focusOrOpenPreviewPopout()}
           >
             {/* Both the `ghost` and `outline` Button variants force icons to

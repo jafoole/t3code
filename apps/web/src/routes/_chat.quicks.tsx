@@ -94,7 +94,7 @@ function QuicksPage() {
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search Quicks"
               aria-label="Search Quicks"
-              className="h-8 w-full rounded-md border border-input bg-popover pr-2 pl-8 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-8 w-full rounded-md border border-input bg-background pr-2 pl-8 text-sm text-foreground outline-none placeholder:text-muted-foreground/72 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/24 dark:bg-input/32"
             />
           </div>
           <Button size="sm" disabled={busy} onClick={() => void create()}>
@@ -114,7 +114,7 @@ function QuicksPage() {
                 key={`${row.ref.environmentId}:${row.ref.projectId}`}
                 type="button"
                 onClick={() => openQuick(row)}
-                className="flex w-full items-center gap-3 border-b border-border/40 px-2 py-3 text-left outline-none transition-colors hover:bg-accent/50 focus-visible:bg-accent/50"
+                className="flex w-full items-center gap-3 border-b border-border/40 px-2 py-3 text-left outline-none transition-colors hover:bg-accent/50 focus-visible:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
               >
                 <ZapIcon className="size-3.5 shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate text-sm text-foreground">{row.name}</span>

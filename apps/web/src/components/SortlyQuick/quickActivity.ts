@@ -3,6 +3,7 @@ import type { ScopedProjectRef } from "@t3tools/contracts";
 import { useMemo } from "react";
 
 import { useThreadShellsForProjectRefs } from "../../state/entities";
+import { formatRelativeTimeLabel } from "../../timestampFormat";
 
 /**
  * "Last activity" for a Sortly Quick.
@@ -96,24 +97,18 @@ export function resolveQuickActivity(
   return { ...merged, sortKey: merged.lastActivityAt ?? fallbackCreatedAt };
 }
 
-/** "4 days ago" for the last week, then an absolute date — mirrors Claude's list. */
+/**
+ * Recent timestamps use the app's shared relative formatter ("5m ago" — the
+ * same dialect as the sidebar thread rows and command palette, so the /quicks
+ * page never disagrees with the row for the same instant), switching to an
+ * absolute date past a week ("Jul 20") where "23d ago" stops being useful.
+ */
 export function formatQuickTimestamp(iso: string, now: Date): string {
   const then = new Date(iso);
   if (Number.isNaN(then.getTime())) return "";
-  const diffMs = now.getTime() - then.getTime();
   const dayMs = 24 * 60 * 60 * 1000;
-  if (diffMs < 60 * 1000) return "just now";
-  if (diffMs < 60 * 60 * 1000) {
-    const mins = Math.max(1, Math.floor(diffMs / (60 * 1000)));
-    return `${mins} min${mins === 1 ? "" : "s"} ago`;
-  }
-  if (diffMs < dayMs) {
-    const hours = Math.max(1, Math.floor(diffMs / (60 * 60 * 1000)));
-    return `${hours} hour${hours === 1 ? "" : "s"} ago`;
-  }
-  const days = Math.floor(diffMs / dayMs);
-  if (days === 1) return "yesterday";
-  if (days < 7) return `${days} days ago`;
+  const days = Math.floor((now.getTime() - then.getTime()) / dayMs);
+  if (days < 7) return formatRelativeTimeLabel(iso);
   const sameYear = then.getFullYear() === now.getFullYear();
   return then.toLocaleDateString(undefined, {
     month: "short",

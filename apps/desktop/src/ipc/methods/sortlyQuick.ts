@@ -639,9 +639,10 @@ const deleteOnServer = (id: string, editToken: string) =>
   });
 
 // Full delete cascade for a Quick: remove the prototype from the server (and
-// with it, the gallery), then remove the local workspace folder. The folder is
-// removed even when the server call fails, so a dead/unreachable server never
-// strands an orphaned workspace on disk — the server error is still reported.
+// with it, the gallery), then remove the local workspace folder. If the server
+// call fails, NOTHING is removed: the workspace manifest holds the only copy of
+// the edit token, so deleting the folder first would strand an undeletable
+// prototype (and gallery entry) on the server forever.
 const doDelete = Effect.fn("desktop.ipc.sortlyQuick.doDelete")(function* (
   workspaceRoot: string,
 ) {

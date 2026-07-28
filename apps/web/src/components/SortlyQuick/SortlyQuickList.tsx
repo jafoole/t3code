@@ -80,7 +80,6 @@ export function SortlyQuickList({
   }
 
   const visible = ordered.slice(0, SIDEBAR_QUICK_LIMIT);
-  const hiddenCount = ordered.length - visible.length;
 
   return (
     <SidebarMenu className="gap-0.5 px-2 pb-1">
@@ -103,7 +102,7 @@ export function SortlyQuickList({
           />
         );
       })}
-      {hiddenCount > 0 && <ViewAllQuicksRow total={ordered.length} />}
+      {ordered.length > 0 && <ViewAllQuicksRow total={ordered.length} />}
     </SidebarMenu>
   );
 }
@@ -112,7 +111,8 @@ function ViewAllQuicksRow({ total }: { total: number }) {
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        className="h-7 justify-between text-xs text-muted-foreground hover:text-foreground"
+        size="sm"
+        className="justify-between text-muted-foreground hover:text-foreground"
         render={<Link to="/quicks" />}
       >
         <span>View all</span>
