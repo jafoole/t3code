@@ -49,6 +49,10 @@ const CLAUDE_PRESENTATION = {
   showInteractionModeToggle: true,
 } as const;
 const MINIMUM_CLAUDE_FABLE_5_VERSION = "2.1.169";
+// Claude Opus 5 shipped alongside/after Claude Fable 5 support in Claude Code.
+// The exact minimum CLI version is unverified upstream, so gate it at the
+// Fable 5 floor for now.
+const MINIMUM_CLAUDE_OPUS_5_VERSION = MINIMUM_CLAUDE_FABLE_5_VERSION;
 const MINIMUM_CLAUDE_OPUS_4_8_VERSION = "2.1.154";
 const MINIMUM_CLAUDE_OPUS_4_7_VERSION = "2.1.111";
 
@@ -80,6 +84,43 @@ const BUILT_IN_MODELS: ReadonlyArray<ServerProviderModel> = [
             { value: "200k", label: "200k", isDefault: true },
             { value: "1m", label: "1M" },
           ],
+        }),
+      ],
+    }),
+  },
+  {
+    slug: "claude-opus-5",
+    name: "Claude Opus 5",
+    isCustom: false,
+    capabilities: createModelCapabilities({
+      optionDescriptors: [
+        buildSelectOptionDescriptor({
+          id: "effort",
+          label: "Reasoning",
+          options: [
+            { value: "low", label: "Low" },
+            { value: "medium", label: "Medium" },
+            { value: "high", label: "High", isDefault: true },
+            { value: "xhigh", label: "Extra High" },
+            { value: "max", label: "Max" },
+            { value: "ultracode", label: "Ultracode" },
+            { value: "ultrathink", label: "Ultrathink" },
+          ],
+          promptInjectedValues: ["ultrathink"],
+        }),
+        buildSelectOptionDescriptor({
+          id: "contextWindow",
+          label: "Context Window",
+          options: [
+            { value: "200k", label: "200k", isDefault: true },
+            { value: "1m", label: "1M" },
+          ],
+        }),
+        // Fast mode is available on Opus 5 (as on 4.8/4.7); the Fable 5 entry
+        // this one mirrors has no toggle, so it's added explicitly.
+        buildBooleanOptionDescriptor({
+          id: "fastMode",
+          label: "Fast Mode",
         }),
       ],
     }),
@@ -241,6 +282,10 @@ function supportsClaudeFable5(version: string | null | undefined): boolean {
   return version ? compareSemverVersions(version, MINIMUM_CLAUDE_FABLE_5_VERSION) >= 0 : false;
 }
 
+function supportsClaudeOpus5(version: string | null | undefined): boolean {
+  return version ? compareSemverVersions(version, MINIMUM_CLAUDE_OPUS_5_VERSION) >= 0 : false;
+}
+
 function supportsClaudeOpus48(version: string | null | undefined): boolean {
   return version ? compareSemverVersions(version, MINIMUM_CLAUDE_OPUS_4_8_VERSION) >= 0 : false;
 }
@@ -255,6 +300,9 @@ function getBuiltInClaudeModelsForVersion(
   return BUILT_IN_MODELS.filter((model) => {
     if (model.slug === "claude-fable-5") {
       return supportsClaudeFable5(version);
+    }
+    if (model.slug === "claude-opus-5") {
+      return supportsClaudeOpus5(version);
     }
     if (model.slug === "claude-opus-4-8") {
       return supportsClaudeOpus48(version);
@@ -322,7 +370,12 @@ export function normalizeClaudeCliEffort(
   if (effort === "ultracode") {
     return "xhigh";
   }
-  if (effort === "xhigh" && model !== "claude-fable-5" && model !== "claude-opus-4-8") {
+  if (
+    effort === "xhigh" &&
+    model !== "claude-fable-5" &&
+    model !== "claude-opus-5" &&
+    model !== "claude-opus-4-8"
+  ) {
     return "max";
   }
   if (effort === "max" && model === "claude-sonnet-4-6") {
@@ -647,7 +700,7 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: "Claude is disabled in T3 Code settings.",
+        message: "Claude is disabled in Pallet settings.",
       },
     });
   }
@@ -806,7 +859,7 @@ export const makePendingClaudeProvider = (
           version: null,
           status: "warning",
           auth: { status: "unknown" },
-          message: "Claude is disabled in T3 Code settings.",
+          message: "Claude is disabled in Pallet settings.",
         },
       });
     }
