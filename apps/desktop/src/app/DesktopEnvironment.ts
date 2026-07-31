@@ -147,7 +147,11 @@ const make = Effect.fn("desktop.environment.make")(function* (
       : input.platform === "darwin"
         ? path.join(homeDirectory, "Library", "Application Support")
         : Option.getOrElse(config.xdgConfigHome, () => path.join(homeDirectory, ".config"));
-  const baseDir = Option.getOrElse(config.t3Home, () => path.join(homeDirectory, ".t3"));
+  // Pallet deliberately diverges from upstream here: its own home keeps state,
+  // settings and auth fully separate from an installed T3 Code (which owns
+  // ~/.t3), and the distinct Electron profile below gives Pallet its own
+  // single-instance lock so both apps can run at the same time.
+  const baseDir = Option.getOrElse(config.t3Home, () => path.join(homeDirectory, ".pallet"));
   const rootDir = path.resolve(input.dirname, "../../..");
   const appRoot = input.isPackaged ? input.appPath : rootDir;
   const branding = resolveDesktopAppBranding({
@@ -156,8 +160,8 @@ const make = Effect.fn("desktop.environment.make")(function* (
   });
   const displayName = branding.displayName;
   const stateDir = path.join(baseDir, isDevelopment ? "dev" : "userdata");
-  const userDataDirName = isDevelopment ? "t3code-dev" : "t3code";
-  const legacyUserDataDirName = isDevelopment ? "T3 Code (Dev)" : "T3 Code (Alpha)";
+  const userDataDirName = isDevelopment ? "pallet-dev" : "pallet";
+  const legacyUserDataDirName = isDevelopment ? "Pallet (Dev)" : "Pallet (Alpha)";
   const resourcesPath = input.resourcesPath;
 
   return DesktopEnvironment.of({
