@@ -13,6 +13,7 @@ function provider(input: {
   provider: ProviderDriverKind;
   instanceId: string;
   enabled?: boolean;
+  installed?: boolean;
   availability?: ServerProvider["availability"];
   displayName?: string;
 }): ServerProvider {
@@ -21,7 +22,7 @@ function provider(input: {
     driver: input.provider,
     ...(input.displayName ? { displayName: input.displayName } : {}),
     enabled: input.enabled ?? true,
-    installed: true,
+    installed: input.installed ?? true,
     version: null,
     status: "ready",
     ...(input.availability ? { availability: input.availability } : {}),
@@ -144,6 +145,21 @@ describe("resolveSelectableProviderInstance", () => {
     ];
 
     expect(resolveSelectableProviderInstance(providers, disabled)).toBe(fallback);
+  });
+
+  it("falls back when the requested instance is not installed", () => {
+    const notInstalled = ProviderInstanceId.make("codex");
+    const fallback = ProviderInstanceId.make("claudeAgent");
+    const providers = [
+      provider({
+        provider: ProviderDriverKind.make("codex"),
+        instanceId: notInstalled,
+        installed: false,
+      }),
+      provider({ provider: ProviderDriverKind.make("claudeAgent"), instanceId: fallback }),
+    ];
+
+    expect(resolveSelectableProviderInstance(providers, notInstalled)).toBe(fallback);
   });
 
   it("does not return disabled, unavailable, or unknown instances when none are sendable", () => {

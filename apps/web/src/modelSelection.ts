@@ -1,6 +1,7 @@
 import {
   DEFAULT_GIT_TEXT_GENERATION_MODEL,
   DEFAULT_GIT_TEXT_GENERATION_MODEL_BY_PROVIDER,
+  DEFAULT_MODEL,
   defaultInstanceIdForDriver,
   type ModelSelection,
   ProviderDriverKind,
@@ -253,6 +254,31 @@ export function resolveAppModelSelectionForInstance(
     entry.models[0]?.slug ??
     null
   );
+}
+
+/**
+ * Default `{ instanceId, model }` for a newly created project. Picks the
+ * first enabled + installed provider instance, preferring one the user has
+ * expressed model preferences for (same policy as `useCreateQuick`).
+ * A project's default becomes its threads' provider, so it has to be one
+ * the user actually has on — hardcoding an instance here is what produced
+ * "Provider instance 'codex' is disabled". Returns `null` when no instance
+ * qualifies (e.g. while the backend is still connecting) so callers can
+ * omit the project default instead of persisting a broken one.
+ */
+export function resolveDefaultProjectModelSelection(
+  settings: UnifiedSettings,
+  providers: ReadonlyArray<ServerProvider>,
+): { readonly instanceId: ProviderInstanceId; readonly model: string } | null {
+  const candidates = providers.filter((provider) => provider.enabled && provider.installed);
+  const chosen =
+    candidates.find((provider) => settings.providerModelPreferences?.[provider.instanceId]) ??
+    candidates[0];
+  if (!chosen) return null;
+  const model =
+    resolveAppModelSelectionForInstance(chosen.instanceId, settings, providers, null) ??
+    DEFAULT_MODEL;
+  return { instanceId: chosen.instanceId, model };
 }
 
 /**

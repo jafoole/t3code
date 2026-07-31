@@ -1,11 +1,10 @@
 import { useAtomValue } from "@effect/atom-react";
-import { DEFAULT_MODEL } from "@t3tools/contracts";
 import { ZapIcon } from "lucide-react";
 import { useState } from "react";
 
 import { useNewThreadHandler } from "../../hooks/useHandleNewThread";
 import { usePrimarySettings } from "../../hooks/useSettings";
-import { resolveAppModelSelectionForInstance } from "../../modelSelection";
+import { resolveDefaultProjectModelSelection } from "../../modelSelection";
 import { primaryServerProvidersAtom } from "../../state/server";
 import { SidebarGroup, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "../ui/sidebar";
 import { toastManager, stackedThreadToast } from "../ui/toast";
@@ -44,10 +43,7 @@ export function useCreateQuick(): { create: () => Promise<void>; busy: boolean }
       // A Quick's project default becomes its thread's provider, so it has to
       // be one the user actually has on — hardcoding a driver here is what
       // produced "Provider instance 'codex' is disabled".
-      const candidates = providers.filter((provider) => provider.enabled && provider.installed);
-      const chosen =
-        candidates.find((provider) => settings.providerModelPreferences?.[provider.instanceId]) ??
-        candidates[0];
+      const chosen = resolveDefaultProjectModelSelection(settings, providers);
       if (!chosen) {
         // While the backend is still connecting, `providers` is simply empty —
         // that's a transient condition, not a settings problem. Don't send the
@@ -59,13 +55,7 @@ export function useCreateQuick(): { create: () => Promise<void>; busy: boolean }
         );
         return;
       }
-      const model =
-        resolveAppModelSelectionForInstance(chosen.instanceId, settings, providers, null) ??
-        DEFAULT_MODEL;
-      const result = await createSortlyQuick(defaultQuickName(), {
-        instanceId: chosen.instanceId,
-        model,
-      });
+      const result = await createSortlyQuick(defaultQuickName(), chosen);
       if ("error" in result) {
         showCreateError(result.error);
         return;

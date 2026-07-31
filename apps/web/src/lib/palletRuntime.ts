@@ -20,11 +20,13 @@ import type {
   UpdateProjectInput,
 } from "@t3tools/client-runtime/state/projects";
 import type { UpdateThreadMetadataInput } from "@t3tools/client-runtime/state/threads";
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId, ServerProvider } from "@t3tools/contracts";
+import { DEFAULT_CLIENT_SETTINGS, type UnifiedSettings } from "@t3tools/contracts/settings";
 
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { primaryEnvironmentIdAtom } from "../state/primaryEnvironment";
 import { environmentProjects, projectEnvironment } from "../state/projects";
+import { primaryServerProvidersAtom, primaryServerSettingsAtom } from "../state/server";
 import { threadEnvironment } from "../state/threads";
 
 /** Non-React read of the primary environment id (replaces `getPrimaryEnvironmentConnection`). */
@@ -35,6 +37,21 @@ export function readPrimaryEnvironmentId(): EnvironmentId | null {
 /** Non-React read of every known project (replaces `selectProjectsAcrossEnvironments`). */
 export function readProjectsAcrossEnvironments(): ReadonlyArray<EnvironmentProject> {
   return appAtomRegistry.get(environmentProjects.projectsAtom);
+}
+
+/** Non-React read of the primary environment's provider snapshots. */
+export function readPrimaryServerProviders(): ReadonlyArray<ServerProvider> {
+  return appAtomRegistry.get(primaryServerProvidersAtom);
+}
+
+/**
+ * Non-React read of the primary environment's settings. Client-local keys
+ * come back as defaults (same merge as `mergeEnvironmentSettings` in
+ * `hooks/useSettings`, inlined so this adapter stays hook-free) — callers
+ * here only consume the server-authoritative provider/model fields.
+ */
+export function readPrimaryUnifiedSettings(): UnifiedSettings {
+  return { ...appAtomRegistry.get(primaryServerSettingsAtom), ...DEFAULT_CLIENT_SETTINGS };
 }
 
 export function createProjectCommand(environmentId: EnvironmentId, input: CreateProjectInput) {

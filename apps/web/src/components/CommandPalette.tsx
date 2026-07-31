@@ -7,12 +7,10 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import {
-  DEFAULT_MODEL,
   type DesktopWslState,
   type EnvironmentId,
   type FilesystemBrowseResult,
   type ProjectId,
-  ProviderInstanceId,
   type SourceControlDiscoveryResult,
   type SourceControlProviderKind,
   type SourceControlRepositoryInfo,
@@ -49,7 +47,8 @@ import { OpenAddProjectCommandPaletteProvider } from "../commandPaletteContext";
 import { isDesktopLocalConnectionTarget } from "../connection/desktopLocal";
 import { useDesktopLocalBootstraps } from "../connection/useDesktopLocalBootstraps";
 import { useHandleNewThread } from "../hooks/useHandleNewThread";
-import { useClientSettings } from "../hooks/useSettings";
+import { useClientSettings, usePrimarySettings } from "../hooks/useSettings";
+import { resolveDefaultProjectModelSelection } from "../modelSelection";
 import { readLocalApi } from "../localApi";
 import { desktopLocalBackendId } from "../connection/desktopLocal";
 import { filesystemEnvironment } from "../state/filesystem";
@@ -111,7 +110,7 @@ import { CommandPaletteResults } from "./CommandPaletteResults";
 import { AzureDevOpsIcon, BitbucketIcon, GitHubIcon, GitLabIcon } from "./Icons";
 import { ProjectFavicon } from "./ProjectFavicon";
 import { ThreadRowLeadingStatus, ThreadRowTrailingStatus } from "./ThreadStatusIndicators";
-import { primaryServerKeybindingsAtom } from "../state/server";
+import { primaryServerKeybindingsAtom, primaryServerProvidersAtom } from "../state/server";
 import { resolveShortcutCommand } from "../keybindings";
 import {
   Command,
@@ -476,6 +475,8 @@ function OpenCommandPaletteDialog(props: {
   const projects = useProjects();
   const threads = useThreadShells();
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
+  const primaryProviders = useAtomValue(primaryServerProvidersAtom);
+  const primarySettings = usePrimarySettings();
   const [viewStack, setViewStack] = useState<CommandPaletteView[]>([]);
   const currentView = viewStack.at(-1) ?? null;
   const [browseGeneration, setBrowseGeneration] = useState(0);
@@ -1149,6 +1150,14 @@ function OpenCommandPaletteDialog(props: {
       }
 
       const projectId = newProjectId();
+      // Resolve the project default from enabled + installed providers (same
+      // policy as `useCreateQuick`) instead of hardcoding an instance the
+      // user may have disabled. When none qualifies, omit the default — the
+      // composer resolves a sendable instance at send time.
+      const defaultModelSelection = resolveDefaultProjectModelSelection(
+        primarySettings,
+        primaryProviders,
+      );
       const createResult = await createProject({
         environmentId: input.environmentId,
         input: {
@@ -1156,10 +1165,7 @@ function OpenCommandPaletteDialog(props: {
           title: inferProjectTitleFromPath(cwd),
           workspaceRoot: cwd,
           createWorkspaceRootIfMissing: true,
-          defaultModelSelection: {
-            instanceId: ProviderInstanceId.make("codex"),
-            model: DEFAULT_MODEL,
-          },
+          ...(defaultModelSelection ? { defaultModelSelection } : {}),
         },
       });
       if (createResult._tag === "Failure") {
@@ -1196,6 +1202,8 @@ function OpenCommandPaletteDialog(props: {
       handleNewThread,
       createProject,
       navigate,
+      primaryProviders,
+      primarySettings,
       projects,
       setOpen,
       clientSettings.sidebarThreadSortOrder,

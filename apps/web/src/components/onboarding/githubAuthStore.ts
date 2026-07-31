@@ -1,11 +1,14 @@
 import { create } from "zustand";
-import { DEFAULT_MODEL, ProviderInstanceId, type GithubUser } from "@t3tools/contracts";
+import { type GithubUser } from "@t3tools/contracts";
 import {
   createProjectCommand,
   readPrimaryEnvironmentId,
+  readPrimaryServerProviders,
+  readPrimaryUnifiedSettings,
   readProjectsAcrossEnvironments,
   waitForPrimaryEnvironment,
 } from "../../lib/palletRuntime";
+import { resolveDefaultProjectModelSelection } from "../../modelSelection";
 import { findProjectByPath } from "../../lib/projectPaths";
 import { newCommandId, newProjectId } from "../../lib/utils";
 import { stackedThreadToast, toastManager } from "../ui/toast";
@@ -127,16 +130,22 @@ async function ensureSortlyProject(destPath: string, title = "Sortly Prototypes"
     return;
   }
 
+  // Resolve the project default from enabled + installed providers (same
+  // policy as `useCreateQuick`) instead of hardcoding an instance the user
+  // may have disabled. When none qualifies (e.g. providers still streaming
+  // in), omit the default — the composer resolves a sendable instance at
+  // send time.
+  const defaultModelSelection = resolveDefaultProjectModelSelection(
+    readPrimaryUnifiedSettings(),
+    readPrimaryServerProviders(),
+  );
   await createProjectCommand(environmentId, {
     commandId: newCommandId(),
     projectId: newProjectId(),
     title,
     workspaceRoot: destPath,
     createWorkspaceRootIfMissing: false,
-    defaultModelSelection: {
-      instanceId: ProviderInstanceId.make("codex"),
-      model: DEFAULT_MODEL,
-    },
+    ...(defaultModelSelection ? { defaultModelSelection } : {}),
     createdAt: new Date().toISOString(),
   });
   markEnsured();

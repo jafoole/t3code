@@ -1,15 +1,20 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
   ProviderDriverKind,
+  ProviderInstanceId,
   type ProviderOptionDescriptor,
   type ProviderOptionSelection,
+  type ServerProvider,
   type ServerProviderModel,
 } from "@t3tools/contracts";
+import { deriveProviderInstanceEntries } from "../../providerInstances";
 import {
   getComposerPromptInjectionState,
   getComposerProviderState,
   renderProviderTraitsMenuContent,
   renderProviderTraitsPicker,
+  resolveComposerSelectedInstanceId,
+  type ComposerInstanceSelectionInput,
 } from "./composerProviderState";
 
 // Everything in composerProviderState is now data-driven by the model's
@@ -225,6 +230,177 @@ describe("getComposerProviderState", () => {
     expect(state).not.toHaveProperty("composerFrameClassName");
     expect(state).not.toHaveProperty("composerSurfaceClassName");
     expect(state).not.toHaveProperty("modelPickerIconClassName");
+  });
+});
+
+function providerSnapshot(input: {
+  provider: ProviderDriverKind;
+  instanceId: string;
+  enabled?: boolean;
+  installed?: boolean;
+  availability?: ServerProvider["availability"];
+}): ServerProvider {
+  return {
+    instanceId: ProviderInstanceId.make(input.instanceId),
+    driver: input.provider,
+    enabled: input.enabled ?? true,
+    installed: input.installed ?? true,
+    version: null,
+    status: "ready",
+    ...(input.availability ? { availability: input.availability } : {}),
+    auth: { status: "authenticated" },
+    checkedAt: "2026-01-01T00:00:00.000Z",
+    models: [],
+    slashCommands: [],
+    skills: [],
+  };
+}
+
+const CODEX = ProviderDriverKind.make("codex");
+const CLAUDE = ProviderDriverKind.make("claudeAgent");
+
+function selectionInput(
+  providers: ReadonlyArray<ServerProvider>,
+  overrides: Partial<Omit<ComposerInstanceSelectionInput, "entries">> = {},
+): ComposerInstanceSelectionInput {
+  return {
+    entries: deriveProviderInstanceEntries(providers),
+    draftActiveProvider: null,
+    sessionInstanceId: null,
+    threadInstanceId: null,
+    projectDefaultInstanceId: null,
+    lockedProvider: null,
+    lockedContinuationGroupKey: null,
+    selectedProvider: CODEX,
+    ...overrides,
+  };
+}
+
+describe("resolveComposerSelectedInstanceId", () => {
+  it("respects an explicit selection that is enabled and installed", () => {
+    const providers = [
+      providerSnapshot({ provider: CODEX, instanceId: "codex" }),
+      providerSnapshot({ provider: CLAUDE, instanceId: "claudeAgent" }),
+    ];
+
+    expect(
+      resolveComposerSelectedInstanceId(
+        selectionInput(providers, {
+          projectDefaultInstanceId: ProviderInstanceId.make("claudeAgent"),
+        }),
+      ),
+    ).toBe("claudeAgent");
+  });
+
+  it("falls back to an enabled instance when the project default is disabled", () => {
+    const providers = [
+      providerSnapshot({ provider: CODEX, instanceId: "codex", enabled: false }),
+      providerSnapshot({ provider: CLAUDE, instanceId: "claudeAgent" }),
+    ];
+
+    expect(
+      resolveComposerSelectedInstanceId(
+        selectionInput(providers, {
+          projectDefaultInstanceId: ProviderInstanceId.make("codex"),
+        }),
+      ),
+    ).toBe("claudeAgent");
+  });
+
+  it("falls back when the explicit selection is not installed", () => {
+    const providers = [
+      providerSnapshot({ provider: CODEX, instanceId: "codex", installed: false }),
+      providerSnapshot({ provider: CLAUDE, instanceId: "claudeAgent" }),
+    ];
+
+    expect(
+      resolveComposerSelectedInstanceId(
+        selectionInput(providers, {
+          threadInstanceId: ProviderInstanceId.make("codex"),
+        }),
+      ),
+    ).toBe("claudeAgent");
+  });
+
+  it("falls back when the explicit selection references a removed instance", () => {
+    const providers = [providerSnapshot({ provider: CLAUDE, instanceId: "claudeAgent" })];
+
+    expect(
+      resolveComposerSelectedInstanceId(
+        selectionInput(providers, {
+          projectDefaultInstanceId: ProviderInstanceId.make("removed_instance"),
+        }),
+      ),
+    ).toBe("claudeAgent");
+  });
+
+  it("prefers a sendable instance of the current driver kind when falling back", () => {
+    const providers = [
+      providerSnapshot({ provider: CODEX, instanceId: "codex", enabled: false }),
+      providerSnapshot({ provider: CLAUDE, instanceId: "claudeAgent" }),
+      providerSnapshot({ provider: CODEX, instanceId: "codex_personal" }),
+    ];
+
+    expect(
+      resolveComposerSelectedInstanceId(
+        selectionInput(providers, {
+          projectDefaultInstanceId: ProviderInstanceId.make("codex"),
+          selectedProvider: CODEX,
+        }),
+      ),
+    ).toBe("codex_personal");
+  });
+
+  it("lets the user's picker selection win over thread and project defaults", () => {
+    const providers = [
+      providerSnapshot({ provider: CODEX, instanceId: "codex" }),
+      providerSnapshot({ provider: CLAUDE, instanceId: "claudeAgent" }),
+    ];
+
+    expect(
+      resolveComposerSelectedInstanceId(
+        selectionInput(providers, {
+          draftActiveProvider: ProviderInstanceId.make("claudeAgent"),
+          threadInstanceId: ProviderInstanceId.make("codex"),
+          projectDefaultInstanceId: ProviderInstanceId.make("codex"),
+        }),
+      ),
+    ).toBe("claudeAgent");
+  });
+
+  it("keeps a live session's instance even when it is no longer sendable", () => {
+    const providers = [
+      providerSnapshot({ provider: CODEX, instanceId: "codex", enabled: false }),
+      providerSnapshot({ provider: CLAUDE, instanceId: "claudeAgent" }),
+    ];
+
+    expect(
+      resolveComposerSelectedInstanceId(
+        selectionInput(providers, {
+          sessionInstanceId: ProviderInstanceId.make("codex"),
+          threadInstanceId: ProviderInstanceId.make("codex"),
+        }),
+      ),
+    ).toBe("codex");
+  });
+
+  it("returns a stable id without crashing when no provider is enabled", () => {
+    const providers = [
+      providerSnapshot({ provider: CODEX, instanceId: "codex", enabled: false }),
+      providerSnapshot({ provider: CLAUDE, instanceId: "claudeAgent", enabled: false }),
+    ];
+
+    expect(
+      resolveComposerSelectedInstanceId(
+        selectionInput(providers, {
+          projectDefaultInstanceId: ProviderInstanceId.make("codex"),
+        }),
+      ),
+    ).toBe("codex");
+  });
+
+  it("degrades to the codex default when no providers are known at all", () => {
+    expect(resolveComposerSelectedInstanceId(selectionInput([]))).toBe("codex");
   });
 });
 

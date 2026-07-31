@@ -68,6 +68,16 @@ export function isProviderInstancePickerVisible(entry: ProviderInstanceEntry): b
 }
 
 /**
+ * Whether an instance can accept a new send: enabled in settings, its
+ * driver detected on the machine, and shipped by this build. Deliberately
+ * does not require `status === "ready"` — probe status can lag reality,
+ * and a send attempt surfaces a better error than silently rerouting.
+ */
+export function isProviderInstanceSendable(entry: ProviderInstanceEntry): boolean {
+  return entry.enabled && entry.installed && entry.isAvailable;
+}
+
+/**
  * Turn an instance id slug into a human-readable label. Splits on `_` / `-`
  * and camelCase boundaries and title-cases each token, so `codex_personal`
  * becomes "Codex Personal" and `myCustomInstance` becomes "My Custom
@@ -256,24 +266,37 @@ export function getProviderInstanceModels(
 /**
  * Resolve the routing key for a selection that may reference an instance
  * id that no longer exists (e.g. a persisted thread selection after the
- * user deleted the custom instance). Returns the first enabled instance
- * as a fallback so downstream code can still send a turn.
+ * user deleted the custom instance) or is disabled / not installed.
+ * Returns the first sendable instance as a fallback so downstream code
+ * can still send a turn.
  */
 export function resolveSelectableProviderInstance(
   providers: ReadonlyArray<ServerProvider>,
   instanceId: ProviderInstanceId | undefined,
 ): ProviderInstanceId | undefined {
-  if (instanceId === undefined) {
-    return deriveProviderInstanceEntries(providers).find(
-      (entry) => entry.enabled && entry.isAvailable,
-    )?.instanceId;
+  return resolveSelectableProviderInstanceFromEntries(
+    deriveProviderInstanceEntries(providers),
+    instanceId,
+  );
+}
+
+/**
+ * Entry-based variant of {@link resolveSelectableProviderInstance} for
+ * callers that already hold derived entries — notably the composer, whose
+ * entries carry the settings overlay from `applyProviderInstanceSettings`
+ * (a raw snapshot's `enabled` can lag a settings write).
+ */
+export function resolveSelectableProviderInstanceFromEntries(
+  entries: ReadonlyArray<ProviderInstanceEntry>,
+  instanceId: ProviderInstanceId | undefined,
+): ProviderInstanceId | undefined {
+  if (instanceId !== undefined) {
+    const requested = entries.find((entry) => entry.instanceId === instanceId);
+    if (requested && isProviderInstanceSendable(requested)) {
+      return instanceId;
+    }
   }
-  const entries = deriveProviderInstanceEntries(providers);
-  const requested = entries.find((entry) => entry.instanceId === instanceId);
-  if (requested && requested.enabled && requested.isAvailable) {
-    return instanceId;
-  }
-  return entries.find((entry) => entry.enabled && entry.isAvailable)?.instanceId;
+  return entries.find(isProviderInstanceSendable)?.instanceId;
 }
 
 /**
